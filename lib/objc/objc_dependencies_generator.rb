@@ -15,7 +15,15 @@ class ObjcDependenciesGenerator
 
       # Full output example https://gist.github.com/PaulTaykalo/62cd5d545301c8355cb5
       # With grep output example https://gist.github.com/PaulTaykalo/9d5ecbce8a30a412cdbe
-      dwarfdump_tag_pointers_in_file(filename) do |dwarfdump_file_line|
+      $stderr.puts "-----object_files_dir: #{object_files_dir}----filename: #{filename}"
+      create_hierarchy(filename)
+      
+    end
+  end
+
+  def create_hierarchy filename
+
+    dwarfdump_tag_pointers_in_file(filename) do |dwarfdump_file_line|
 
         # Finding the name in types
         # AT_type( {0x00000456} ( objc_object ) )
@@ -28,7 +36,6 @@ class ObjcDependenciesGenerator
           #create array from num_nodes_popped from the dependency and add it to dependencies of the node previous to these
         end
 
-        $stderr.puts "----#{dwarfdump_file_line} ---- last_seen_tag: #{last_seen_tag}----"
         if dwarfdump_file_line.include? "TAG_structure_type" and last_seen_tag.include? "TAG_compile_unit" #think of what to do for the previous node
           #if the structure does not already exist in the dependencies array else get that object
           @current_node = DependencyHierarchyNode.new
@@ -65,7 +72,6 @@ class ObjcDependenciesGenerator
 
         # yield source, dest
       end
-    end
   end
 
   def currently_seeing_tag
