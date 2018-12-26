@@ -7,22 +7,35 @@ class ObjcDependenciesGenerator
 
     return unless include_dwarf_info
 
-
+    dwarfdumpHierarchyCreator = DwarfdumpHierarchyCreator.new
 
     object_files_in_dir(object_files_dir) do |filename|
 
       # Full output example https://gist.github.com/PaulTaykalo/62cd5d545301c8355cb5
       # With grep output example https://gist.github.com/PaulTaykalo/9d5ecbce8a30a412cdbe
       $stderr.puts "-----object_files_dir: #{object_files_dir}----filename: #{filename}"
-      create_hierarchy(filename)
+      object_file_dependency_hierarchy = dwarfdumpHierarchyCreator.create_hierarchy(filename)
       
     end
   end
 
+  def object_files_in_dir(object_files_dirs)
+    dirs = Array(object_files_dirs)
+    dirs.each do |dir|
+      IO.popen("find \"#{dir}\" -name \"*.o\"") { |f|
+        f.each { |line| yield line }
+      }
+    end  
+  end
+
+end
+
+class DwarfdumpHierarchyCreator
+
   def create_hierarchy filename
 
     tag_stack = Stack.new
-    @dependency = []
+    dependency = []
     current_node = nil
 
     dwarfdump_tag_pointers_in_file(filename) do |dwarfdump_file_line|
@@ -42,7 +55,7 @@ class ObjcDependenciesGenerator
           #if the structure does not already exist in the dependencies array else get that object
           current_node = DependencyHierarchyNode.new
           $stderr.puts "----new node created: #{current_node}----#{last_seen_tag(tag_stack)}--"
-          @dependency.push(current_node)
+          dependency.push(current_node)
         end
 
         if dwarfdump_file_line.include? "AT_name" and currently_seeing_tag(tag_stack).include? "TAG_structure_type"
@@ -74,6 +87,8 @@ class ObjcDependenciesGenerator
 
         # yield source, dest
       end
+
+      return dependency
   end
 
   def currently_seeing_tag (tag_stack)
@@ -84,22 +99,11 @@ class ObjcDependenciesGenerator
     return tag_stack.peek_tag_name(-2)
   end
 
-  def object_files_in_dir(object_files_dirs)
-    dirs = Array(object_files_dirs)
-    dirs.each do |dir|
-      IO.popen("find \"#{dir}\" -name \"*.o\"") { |f|
-        f.each { |line| yield line }
-      }
-    end  
-  end
-
   def dwarfdump_tag_pointers_in_file(filename)
     IO.popen("dwarfdump \"#{filename.strip}\" ") { |fd|
       fd.each { |line| yield line }
     }
   end
-
-
 
   def update_tag_hierarchy (tag_hierarchy_node, tag_stack)
 
@@ -132,8 +136,6 @@ class ObjcDependenciesGenerator
     return 0
 
   end
-
-
 end
 
 class Stack
