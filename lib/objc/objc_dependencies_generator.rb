@@ -1,15 +1,13 @@
 class ObjcDependenciesGenerator
 
-  attr_reader :tag_stack, :current_node, :dependency
+  attr_reader :dependency
 
   # http://www.thagomizer.com/blog/2016/05/06/algorithms-queues-and-stacks.html
   def generate_dependencies(object_files_dir, include_dwarf_info)
 
     return unless include_dwarf_info
 
-    @tag_stack = Stack.new
-    @dependency = []
-    @current_node = nil
+
 
     object_files_in_dir(object_files_dir) do |filename|
 
@@ -23,6 +21,10 @@ class ObjcDependenciesGenerator
 
   def create_hierarchy filename
 
+    tag_stack = Stack.new
+    @dependency = []
+    current_node = nil
+
     dwarfdump_tag_pointers_in_file(filename) do |dwarfdump_file_line|
 
         # Finding the name in types
@@ -31,37 +33,37 @@ class ObjcDependenciesGenerator
 
         if dwarfdump_file_line.include? "TAG_"
           tag_node = TagHierarchyNode.new (dwarfdump_file_line)
-          num_nodes_popped = update_tag_hierarchy(tag_node)
+          num_nodes_popped = update_tag_hierarchy(tag_node, tag_stack)
           $stderr.puts "-----num_nodes_popped: #{num_nodes_popped}------"
           #create array from num_nodes_popped from the dependency and add it to dependencies of the node previous to these
         end
 
-        if dwarfdump_file_line.include? "TAG_structure_type" and last_seen_tag.include? "TAG_compile_unit" #think of what to do for the previous node
+        if dwarfdump_file_line.include? "TAG_structure_type" and last_seen_tag(tag_stack).include? "TAG_compile_unit" #think of what to do for the previous node
           #if the structure does not already exist in the dependencies array else get that object
-          @current_node = DependencyHierarchyNode.new
-          $stderr.puts "----new node created: #{current_node}----#{last_seen_tag}--"
-          @dependency.push(@current_node)
+          current_node = DependencyHierarchyNode.new
+          $stderr.puts "----new node created: #{current_node}----#{last_seen_tag(tag_stack)}--"
+          @dependency.push(current_node)
         end
 
-        if dwarfdump_file_line.include? "AT_name" and currently_seeing_tag.include? "TAG_structure_type"
+        if dwarfdump_file_line.include? "AT_name" and currently_seeing_tag(tag_stack).include? "TAG_structure_type"
           name_match = /(?<=")(.*)(?=")/.match(dwarfdump_file_line) #extract subclass name between apostrophe
           name = name_match[0]
           $stderr.puts "-----current_node: #{current_node}----subclass: #{name}------"
-          @current_node.subclass = name
+          current_node.subclass = name
         end
 
         at_type_regex = /(?<=}\s\(\s)(.*?)(?=\s\))/
-        if dwarfdump_file_line.include? "AT_type" and currently_seeing_tag.include? "TAG_inheritance"
+        if dwarfdump_file_line.include? "AT_type" and currently_seeing_tag(tag_stack).include? "TAG_inheritance"
           name_match = at_type_regex.match(dwarfdump_file_line) #extract inheritance name between brackets
           name = name_match[0]
-          @current_node.superclass = name
+          current_node.superclass = name
           $stderr.puts "---------superclass: #{name}------"
         end
 
-        if dwarfdump_file_line.include? "AT_type" and currently_seeing_tag.include? "TAG_APPLE_Property"
+        if dwarfdump_file_line.include? "AT_type" and currently_seeing_tag(tag_stack).include? "TAG_APPLE_Property"
           name_match = at_type_regex.match(dwarfdump_file_line) #extract property name
           name = name_match[0]
-          @current_node.dependency.push(name)
+          current_node.dependency.push(name)
           $stderr.puts "---------dependency: #{name}------"
         end
 
@@ -74,12 +76,12 @@ class ObjcDependenciesGenerator
       end
   end
 
-  def currently_seeing_tag
-    return @tag_stack.peek_last.tag_name
+  def currently_seeing_tag (tag_stack)
+    return tag_stack.peek_last.tag_name
   end
 
-  def last_seen_tag
-    return @tag_stack.peek_tag_name(-2)
+  def last_seen_tag (tag_stack)
+    return tag_stack.peek_tag_name(-2)
   end
 
   def object_files_in_dir(object_files_dirs)
@@ -99,26 +101,28 @@ class ObjcDependenciesGenerator
 
 
 
-  def update_tag_hierarchy (tag_hierarchy_node)
-    if @tag_stack.peek_last == nil
-      @tag_stack.push tag_hierarchy_node
+  def update_tag_hierarchy (tag_hierarchy_node, tag_stack)
+
+    $stderr.puts "-----tag_stack: #{tag_stack}----"
+    if tag_stack.peek_last == nil
+      tag_stack.push tag_hierarchy_node
       $stderr.puts "----push---#{tag_hierarchy_node.level_spaces_length}"
     else
-      if @tag_stack.peek_last.level_spaces_length < tag_hierarchy_node.level_spaces_length
-        @tag_stack.push tag_hierarchy_node
+      if tag_stack.peek_last.level_spaces_length < tag_hierarchy_node.level_spaces_length
+        tag_stack.push tag_hierarchy_node
         $stderr.puts "----push---#{tag_hierarchy_node.level_spaces_length}"
       else
-        if @tag_stack.peek_last.level_spaces_length == tag_hierarchy_node.level_spaces_length
-          @tag_stack.push tag_hierarchy_node
+        if tag_stack.peek_last.level_spaces_length == tag_hierarchy_node.level_spaces_length
+          tag_stack.push tag_hierarchy_node
           $stderr.puts "----push---#{tag_hierarchy_node.level_spaces_length}"
         else
           num_nodes_popped = 0
-          while @tag_stack.peek_last.level_spaces_length > tag_hierarchy_node.level_spaces_length
-            x = @tag_stack.pop
+          while tag_stack.peek_last.level_spaces_length > tag_hierarchy_node.level_spaces_length
+            x = tag_stack.pop
             num_nodes_popped += 1
             $stderr.puts "--------pop---#{x.level_spaces_length}"
           end
-          @tag_stack.push tag_hierarchy_node
+          tag_stack.push tag_hierarchy_node
           $stderr.puts "----push---#{tag_hierarchy_node.level_spaces_length}"
 
           return num_nodes_popped
