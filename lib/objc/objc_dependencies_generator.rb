@@ -19,6 +19,15 @@ class ObjcDependenciesGenerator
       @dependency.push(object_file_dependency_hierarchy)
       @dependency = @dependency.flatten()
 
+      $stderr.puts "\n\n\n\n\n\n\n\n\n\n\n\n----------------------------------------"
+      @dependency.each { |dependency_hierarchy_node|
+
+        $stderr.puts "--------------#{dependency_hierarchy_node}-----------------"
+        $stderr.puts "-----subclass: #{dependency_hierarchy_node.subclass}-----"
+        $stderr.puts "-----superclass: #{dependency_hierarchy_node.superclass}-----"
+        $stderr.puts "-----dependency: #{dependency_hierarchy_node.dependency}-----"
+      }
+
     end
 
   end
