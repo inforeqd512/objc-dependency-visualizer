@@ -56,6 +56,13 @@ class DwarfdumpHierarchyCreator
         # Finding the name in types
         # AT_type( {0x00000456} ( objc_object ) )
         $stderr.puts dwarfdump_file_line
+        at_type_regex = /(?<=}\s\(\s)(.*?)(?=\s\))/
+        at_type_formal_parameter_regex = /(?<=\s\(\s)(.*?)(?=\s\))/
+        at_type_subprogram_regex = at_type_formal_parameter_regex
+
+        at_name_regex = /(?<=")(.*)(?=")/
+        at_name_subprogram_regex = /(?<=\[)(.*?)(?=\s)/
+        at_name_subprogram_name_category_regex = /(.*?)(?=\()/
 
         if dwarfdump_file_line.include? "TAG_"
           tag_node = TagHierarchyNode.new (dwarfdump_file_line)
@@ -72,13 +79,12 @@ class DwarfdumpHierarchyCreator
         end
 
         if dwarfdump_file_line.include? "AT_name" and currently_seeing_tag(tag_stack).include? "TAG_structure_type"
-          name_match = /(?<=")(.*)(?=")/.match(dwarfdump_file_line) #extract subclass name between apostrophe
+          name_match = at_name_regex.match(dwarfdump_file_line) #extract subclass name between apostrophe
           name = name_match[0]
           $stderr.puts "-----current_node: #{current_node}----subclass: #{name}------"
           current_node.subclass = name
         end
 
-        at_type_regex = /(?<=}\s\(\s)(.*?)(?=\s\))/
         if dwarfdump_file_line.include? "AT_type" and currently_seeing_tag(tag_stack).include? "TAG_inheritance"
           name_match = at_type_regex.match(dwarfdump_file_line) #extract inheritance name between brackets
           name = name_match[0]
@@ -93,6 +99,41 @@ class DwarfdumpHierarchyCreator
           $stderr.puts "---------dependency: #{name}------"
         end
 
+        if dwarfdump_file_line.include? "AT_name" and currently_seeing_tag(tag_stack).include? "TAG_subprogram"
+          name_match = at_name_subprogram_regex.match(dwarfdump_file_line) #extract class name from method call
+          name = name_match[0]
+          if name.include?("(") #this is a method in a category
+            name_match = at_name_subprogram_name_category_regex.match(name) #extract class name from category name
+            name = name_match[0]
+          end
+          #find the node with the name and make it current
+          found_node = find_node(name, dependency)
+          if found_node != nil
+            $stderr.puts "---------current_node : #{@current_node}------"
+            @current_node = found_node
+            $stderr.puts "---------found current_node : #{@current_node}------"
+          else
+            $stderr.puts "---------THIS SHOULD NOT HAPPEN------"
+          end
+        end
+
+        if dwarfdump_file_line.include? "AT_type" and currently_seeing_tag(tag_stack).include? "TAG_subprogram"
+          name_match = at_type_subprogram_regex.match(dwarfdump_file_line) #extract return type from method call
+          name = name_match[0]
+          current_node.dependency.push(name)
+          $stderr.puts "---------dependency: #{name}------"
+        end
+
+        if dwarfdump_file_line.include? "AT_type" and currently_seeing_tag(tag_stack).include? "TAG_formal_parameter"
+          name_match = at_type_formal_parameter_regex.match(dwarfdump_file_line) #extract class name from method call
+          name = name_match[0]
+          if name.include?("const ") or name.include?("SEL")
+            #do nothing
+          else
+            current_node.dependency.push(name)
+            $stderr.puts "---------dependency: #{name}------"
+          end
+        end
         # tag_pointer_for_class = /.*?AT_type\(\s\{.*?\}.*\(\s((function|const)\s)?([A-Z][^\)]+?)\*?\s\).*/.match(tag_pointer_line)
         # next unless tag_pointer_for_class
 
@@ -102,6 +143,20 @@ class DwarfdumpHierarchyCreator
     end
 
     return dependency
+  end
+
+  def find_node (name, node_list)
+
+    found_node = nil
+    for node in node_list
+      if node.subclass == name
+        found_node = node
+        break        
+      end
+    end
+
+    return found_node
+
   end
 
   def currently_seeing_tag (tag_stack)
