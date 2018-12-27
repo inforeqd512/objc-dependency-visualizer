@@ -84,7 +84,7 @@ class DwarfdumpHierarchyCreator
         if dwarfdump_file_line.include? "TAG_"
           tag_node = TagHierarchyNode.new (dwarfdump_file_line)
           num_nodes_popped = update_tag_hierarchy(tag_node, tag_stack)
-          $stderr.puts "-----num_nodes_popped: #{num_nodes_popped}------"
+          # $stderr.puts "-----num_nodes_popped: #{num_nodes_popped}------"
           #create array from num_nodes_popped from the dependency and add it to dependencies of the node previous to these
         end
 
@@ -186,27 +186,27 @@ class DwarfdumpHierarchyCreator
 
   def update_tag_hierarchy (tag_hierarchy_node, tag_stack)
 
-    $stderr.puts "-----tag_stack: #{tag_stack}----"
+    # $stderr.puts "-----tag_stack: #{tag_stack}----"
     if tag_stack.peek_last == nil
       tag_stack.push tag_hierarchy_node
-      $stderr.puts "----push---#{tag_hierarchy_node.level_spaces_length}"
+      # $stderr.puts "----push---#{tag_hierarchy_node.level_spaces_length}"
     else
       if tag_stack.peek_last.level_spaces_length < tag_hierarchy_node.level_spaces_length
         tag_stack.push tag_hierarchy_node
-        $stderr.puts "----push---#{tag_hierarchy_node.level_spaces_length}"
+        # $stderr.puts "----push---#{tag_hierarchy_node.level_spaces_length}"
       else
         if tag_stack.peek_last.level_spaces_length == tag_hierarchy_node.level_spaces_length
           tag_stack.push tag_hierarchy_node
-          $stderr.puts "----push---#{tag_hierarchy_node.level_spaces_length}"
+          # $stderr.puts "----push---#{tag_hierarchy_node.level_spaces_length}"
         else
           num_nodes_popped = 0
           while tag_stack.peek_last.level_spaces_length > tag_hierarchy_node.level_spaces_length
             x = tag_stack.pop
             num_nodes_popped += 1
-            $stderr.puts "--------pop---#{x.level_spaces_length}"
+            # $stderr.puts "--------pop---#{x.level_spaces_length}"
           end
           tag_stack.push tag_hierarchy_node
-          $stderr.puts "----push---#{tag_hierarchy_node.level_spaces_length}"
+          # $stderr.puts "----push---#{tag_hierarchy_node.level_spaces_length}"
 
           return num_nodes_popped
         end
