@@ -31,7 +31,6 @@ class ObjcDependenciesGenerator
         }
       }
 
-
     end
 
   end
@@ -100,7 +99,9 @@ class DwarfdumpHierarchyCreator
           name_match = at_name_regex.match(dwarfdump_file_line) #extract subclass name between apostrophe
           name = name_match[0]
           if name.include?("objc_selector")
-            #do nothing
+            #remove the current node created at structure node from dependency as we want to ignore it and nil the current node 
+            dependency.pop
+            current_node = nil
           else
             $stderr.puts "-----current_node: #{current_node}----subclass: #{name}----TAG_structure_type----AT_name---"
             current_node.subclass = name
