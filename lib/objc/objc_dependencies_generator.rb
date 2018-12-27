@@ -25,10 +25,12 @@ class ObjcDependenciesGenerator
 
       #yeild source and destination to create a tree
       @dependency.each { |dependency_hierarchy_node|
-        yield dependency_hierarchy_node.superclass, dependency_hierarchy_node.subclass
-        dependency_hierarchy_node.dependency.each { |node|
-          yield dependency_hierarchy_node.subclass, node
-        }
+        if dependency_hierarchy_node.superclass.length > 0 #ignore Apple's classes  
+          yield dependency_hierarchy_node.superclass, dependency_hierarchy_node.subclass
+          dependency_hierarchy_node.dependency.each { |node|
+            yield dependency_hierarchy_node.subclass, node
+          }
+        end
       }
 
     end
