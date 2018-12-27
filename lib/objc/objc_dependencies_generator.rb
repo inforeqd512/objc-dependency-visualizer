@@ -21,16 +21,16 @@ class ObjcDependenciesGenerator
       @dependency.push(object_file_dependency_hierarchy)
       @dependency = @dependency.flatten()
 
-      $stderr.puts "\n\n\n\n\n\n\n\n\n\n\n\n----------------------------------------"
-      @dependency.each { |dependency_hierarchy_node|
+      print_hierarchy(@dependency)
 
-        $stderr.puts "--------------#{dependency_hierarchy_node}-----------------"
-        $stderr.puts "-----subclass: #{dependency_hierarchy_node.subclass}-----"
-        $stderr.puts "-----superclass: #{dependency_hierarchy_node.superclass}-----"
+      #yeild source and destination to create a tree
+      @dependency.each { |dependency_hierarchy_node|
+        yield dependency_hierarchy_node.superclass, dependency_hierarchy_node.subclass
         dependency_hierarchy_node.dependency.each { |node|
-          $stderr.puts "-----dependency: #{node}-----"
+          yield dependency_hierarchy_node.subclass, node
         }
       }
+
 
     end
 
@@ -43,6 +43,19 @@ class ObjcDependenciesGenerator
         f.each { |line| yield line }
       }
     end  
+  end
+
+  def print_hierarchy (dependency)
+    $stderr.puts "\n\n\n\n\n\n\n\n\n\n\n\n----------------------------------------"
+    dependency.each { |dependency_hierarchy_node|
+
+      $stderr.puts "--------------#{dependency_hierarchy_node}-----------------"
+      $stderr.puts "-----subclass: #{dependency_hierarchy_node.subclass}-----"
+      $stderr.puts "-----superclass: #{dependency_hierarchy_node.superclass}-----"
+      dependency_hierarchy_node.dependency.each { |node|
+        $stderr.puts "-----dependency: #{node}-----"
+      }
+    }
   end
 
 end
@@ -138,12 +151,6 @@ class DwarfdumpHierarchyCreator
             $stderr.puts "---------dependency: #{name}------"
           end
         end
-        # tag_pointer_for_class = /.*?AT_type\(\s\{.*?\}.*\(\s((function|const)\s)?([A-Z][^\)]+?)\*?\s\).*/.match(tag_pointer_line)
-        # next unless tag_pointer_for_class
-
-        # dest = tag_pointer_for_class[3]
-
-        # yield source, dest
     end
 
     return dependency
