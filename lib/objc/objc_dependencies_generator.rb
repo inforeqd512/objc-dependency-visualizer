@@ -1,3 +1,5 @@
+require 'set'
+
 class ObjcDependenciesGenerator
 
   attr_reader :dependency
@@ -25,7 +27,9 @@ class ObjcDependenciesGenerator
         $stderr.puts "--------------#{dependency_hierarchy_node}-----------------"
         $stderr.puts "-----subclass: #{dependency_hierarchy_node.subclass}-----"
         $stderr.puts "-----superclass: #{dependency_hierarchy_node.superclass}-----"
-        $stderr.puts "-----dependency: #{dependency_hierarchy_node.dependency}-----"
+        dependency_hierarchy_node.dependency.each { |node|
+          $stderr.puts "-----dependency: #{node}-----"
+        }
       }
 
     end
@@ -95,7 +99,7 @@ class DwarfdumpHierarchyCreator
         if dwarfdump_file_line.include? "AT_type" and currently_seeing_tag(tag_stack).include? "TAG_APPLE_Property"
           name_match = at_type_regex.match(dwarfdump_file_line) #extract property name
           name = name_match[0]
-          current_node.dependency.push(name)
+          current_node.add_dependency(name)
           $stderr.puts "---------dependency: #{name}------"
         end
 
@@ -120,7 +124,7 @@ class DwarfdumpHierarchyCreator
         if dwarfdump_file_line.include? "AT_type" and currently_seeing_tag(tag_stack).include? "TAG_subprogram"
           name_match = at_type_subprogram_regex.match(dwarfdump_file_line) #extract return type from method call
           name = name_match[0]
-          current_node.dependency.push(name)
+          current_node.add_dependency(name)
           $stderr.puts "---------dependency: #{name}------"
         end
 
@@ -130,7 +134,7 @@ class DwarfdumpHierarchyCreator
           if name.include?("const ") or name.include?("SEL")
             #do nothing
           else
-            current_node.dependency.push(name)
+            current_node.add_dependency(name)
             $stderr.puts "---------dependency: #{name}------"
           end
         end
@@ -266,10 +270,10 @@ class DependencyHierarchyNode
   def initialize
     @subclass = ""
     @superclass = ""
-    @dependency = []
+    @dependency = Set.new
   end
 
   def add_dependency (dependent_node)
-    @dependency.push dependent_node    
+    @dependency.add dependent_node    
   end
 end
