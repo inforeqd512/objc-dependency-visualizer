@@ -7,6 +7,7 @@ class ObjcDependenciesGenerator
 
     return unless include_dwarf_info
 
+    @dependency = []
     dwarfdumpHierarchyCreator = DwarfdumpHierarchyCreator.new
 
     object_files_in_dir(object_files_dir) do |filename|
@@ -15,8 +16,11 @@ class ObjcDependenciesGenerator
       # With grep output example https://gist.github.com/PaulTaykalo/9d5ecbce8a30a412cdbe
       $stderr.puts "-----object_files_dir: #{object_files_dir}----filename: #{filename}"
       object_file_dependency_hierarchy = dwarfdumpHierarchyCreator.create_hierarchy(filename)
-      
+      @dependency.push(object_file_dependency_hierarchy)
+      @dependency = @dependency.flatten()
+
     end
+
   end
 
   def object_files_in_dir(object_files_dirs)
@@ -51,7 +55,7 @@ class DwarfdumpHierarchyCreator
           #create array from num_nodes_popped from the dependency and add it to dependencies of the node previous to these
         end
 
-        if dwarfdump_file_line.include? "TAG_structure_type" and last_seen_tag(tag_stack).include? "TAG_compile_unit" #think of what to do for the previous node
+        if dwarfdump_file_line.include? "TAG_structure_type" 
           #if the structure does not already exist in the dependencies array else get that object
           current_node = DependencyHierarchyNode.new
           $stderr.puts "----new node created: #{current_node}----#{last_seen_tag(tag_stack)}--"
@@ -86,9 +90,9 @@ class DwarfdumpHierarchyCreator
         # dest = tag_pointer_for_class[3]
 
         # yield source, dest
-      end
+    end
 
-      return dependency
+    return dependency
   end
 
   def currently_seeing_tag (tag_stack)
