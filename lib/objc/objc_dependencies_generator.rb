@@ -5,9 +5,7 @@ class ObjcDependenciesGenerator
   attr_reader :dependency
 
   # http://www.thagomizer.com/blog/2016/05/06/algorithms-queues-and-stacks.html
-  def generate_dependencies(object_files_dir, include_dwarf_info)
-
-    return unless include_dwarf_info
+  def generate_dependencies(object_files_dir)
 
     @dependency = []
     dwarfdumpHierarchyCreator = DwarfdumpHierarchyCreator.new

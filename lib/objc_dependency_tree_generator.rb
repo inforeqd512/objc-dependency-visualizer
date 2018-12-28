@@ -50,10 +50,6 @@ class DependencyTreeGenerator
         options[:exclusion_prefixes] = exclusion_prefixes
       end
 
-      o.on('-d', '--use-dwarf-info', 'Use DWARF Information also') do |v|
-        options[:use_dwarf] = v
-      end
-
       o.on('-w', '--swift-dependencies', 'Generate swift project dependencies') do |v|
         options[:swift_dependencies] = v
       end
@@ -127,7 +123,7 @@ class DependencyTreeGenerator
     if @options[:swift_dependencies]
       SwiftDependenciesGenerator.new.generate_dependencies(@object_files_directories, &update_tree_block)
     else
-      ObjcDependenciesGenerator.new.generate_dependencies(@object_files_directories, @options[:use_dwarf], &update_objc_tree_block)
+      ObjcDependenciesGenerator.new.generate_dependencies(@object_files_directories, &update_objc_tree_block)
     end
     tree
   end  
