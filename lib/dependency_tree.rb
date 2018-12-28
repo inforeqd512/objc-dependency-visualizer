@@ -38,6 +38,19 @@ class DependencyTree
 
   end
 
+  def add_new(source, dest, source_type = DependencyItemType::UNKNOWN, dest_type = DependencyItemType::UNKNOWN, link_type = DependencyItemType::UNKNOWN)
+
+    register(source, source_type)
+    register(dest, dest_type)
+    register_link(source, dest, link_type)
+
+    return if connected?(source, dest)
+
+    @links_count += 1
+    @links += [{source: source, dest: dest}]
+
+  end
+
   def connected?(source, dest)
     @links.any? {|item| item[:source] == source && item[:dest] == dest}
   end

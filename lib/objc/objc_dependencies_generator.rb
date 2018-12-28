@@ -26,9 +26,9 @@ class ObjcDependenciesGenerator
       #yeild source and destination to create a tree
       @dependency.each { |dependency_hierarchy_node|
         if dependency_hierarchy_node.superclass.length > 0 #ignore Apple's classes  
-          yield dependency_hierarchy_node.superclass, dependency_hierarchy_node.subclass
+          yield dependency_hierarchy_node.superclass, dependency_hierarchy_node.subclass, DependencyItemType::CLASS, DependencyItemType::CLASS, DependencyLinkType::INHERITANCE
           dependency_hierarchy_node.dependency.each { |node|
-            yield dependency_hierarchy_node.subclass, node
+            yield dependency_hierarchy_node.subclass, node, DependencyItemType::CLASS, DependencyItemType::CLASS, DependencyLinkType::CALL
           }
         end
       }
@@ -69,7 +69,7 @@ class DwarfdumpHierarchyCreator
     dependency = []
     current_node = nil
 
-    dwarfdump_tag_pointers_in_file(filename) do |dwarfdump_file_line|
+    dwarfdump_tags_in_file(filename) do |dwarfdump_file_line|
 
         # Finding the name in types
         # AT_type( {0x00000456} ( objc_object ) )
@@ -97,66 +97,76 @@ class DwarfdumpHierarchyCreator
           dependency.push(current_node)
         end
 
-        if dwarfdump_file_line.include? "AT_name" and currently_seeing_tag(tag_stack).include? "TAG_structure_type"
-          name_match = at_name_regex.match(dwarfdump_file_line) #extract subclass name between apostrophe
-          name = name_match[0]
-          if name.include?("objc_selector")
-            #remove the current node created at structure node from dependency as we want to ignore it and nil the current node 
-            dependency.pop
-            current_node = nil
-          else
-            $stderr.puts "-----current_node: #{current_node}----subclass: #{name}----TAG_structure_type----AT_name---"
-            current_node.subclass = name
-          end
-        end
-
-        if dwarfdump_file_line.include? "AT_type" and currently_seeing_tag(tag_stack).include? "TAG_inheritance"
-          name_match = at_type_regex.match(dwarfdump_file_line) #extract inheritance name between brackets
-          name = name_match[0]
-          current_node.superclass = name
-          $stderr.puts "---------superclass: #{name}-----TAG_inheritance---AT_type---"
-        end
-
-        if dwarfdump_file_line.include? "AT_type" and currently_seeing_tag(tag_stack).include? "TAG_APPLE_Property"
-          name_match = at_type_property_regex.match(dwarfdump_file_line) #extract property name
-          name = name_match[0]
-          current_node.add_dependency(name)
-          $stderr.puts "---------dependency: #{name}-----TAG_APPLE_Property---AT_type-"
-        end
-
-        if dwarfdump_file_line.include? "AT_name" and currently_seeing_tag(tag_stack).include? "TAG_subprogram"
-          name_match = at_name_subprogram_regex.match(dwarfdump_file_line) #extract class name from method call
-          name = name_match[0]
-          if name.include?("(") #this is a method in a category
-            name_match = at_name_subprogram_name_category_regex.match(name) #extract class name from category name
+        if current_node != nil # a file may contain several compile units, and those may contain no structures but only subprograms.. DECIDE WHAT TO DO FOR THESE, but ignore them for now
+            if dwarfdump_file_line.include? "AT_name" and currently_seeing_tag(tag_stack).include? "TAG_structure_type"
+            name_match = at_name_regex.match(dwarfdump_file_line) #extract subclass name between apostrophe
             name = name_match[0]
-          end
-          #find the node with the name and make it current
-          found_node = find_node(name, dependency)
-          if found_node != nil
-            $stderr.puts "---------current_node : #{@current_node}------"
-            @current_node = found_node
-            $stderr.puts "---------found current_node : #{@current_node}------"
-          else
-            $stderr.puts "---------THIS SHOULD NOT HAPPEN------"
-          end
-        end
-
-        if dwarfdump_file_line.include? "AT_type" and currently_seeing_tag(tag_stack).include? "TAG_subprogram"
-          name_match = at_type_subprogram_regex.match(dwarfdump_file_line) #extract return type from method call
-          name = name_match[0]
-          current_node.add_dependency(name)
-          $stderr.puts "---------dependency: #{name}----TAG_subprogram---AT_type---"
-        end
-
-        if dwarfdump_file_line.include? "AT_type" and currently_seeing_tag(tag_stack).include? "TAG_formal_parameter"
-          name_match = at_type_formal_parameter_regex.match(dwarfdump_file_line) #extract class name from method call
-          if name_match != nil # ignore  "SEL"
-            name = name_match[0]
-            if name.include?("const ") or name.include?("SEL") #ignore self (const ViewController*)
-              #do nothing
+            if name.include?("objc_selector")
+              #remove the current node created at structure node from dependency as we want to ignore it and nil the current node 
+              dependency.pop
+              current_node = nil
+              $stderr.puts "-----TAG_structure_type----AT_name----current_node = nil---"
             else
+              $stderr.puts "-----current_node: #{current_node}----subclass: #{name}----TAG_structure_type----AT_name---"
+              current_node.subclass = name
+            end
+          end
+
+          if dwarfdump_file_line.include? "AT_type" and currently_seeing_tag(tag_stack).include? "TAG_inheritance"
+            name_match = at_type_regex.match(dwarfdump_file_line) #extract inheritance name between brackets
+            name = name_match[0]
+            current_node.superclass = name
+            $stderr.puts "---------superclass: #{name}-----TAG_inheritance---AT_type---"
+          end
+
+          if dwarfdump_file_line.include? "AT_type" and currently_seeing_tag(tag_stack).include? "TAG_APPLE_Property"
+            name_match = at_type_property_regex.match(dwarfdump_file_line) #extract property name
+            if name_match != nil # ignore  "id"
+              name = name_match[0]
               current_node.add_dependency(name)
+              $stderr.puts "---------dependency: #{name}-----TAG_APPLE_Property---AT_type-"
+            end
+          end
+
+          if dwarfdump_file_line.include? "AT_name" and currently_seeing_tag(tag_stack).include? "TAG_subprogram"
+            name_match = at_name_subprogram_regex.match(dwarfdump_file_line) #extract class name from method call
+            if name_match != nil # ignore  "SEL"
+              name = name_match[0]
+              if name.include?("(") #this is a method in a category
+                name_match = at_name_subprogram_name_category_regex.match(name) #extract class name from category name
+                name = name_match[0]
+              end
+              #find the node with the name and make it current
+              found_node = find_node(name, dependency)
+              if found_node != nil
+                $stderr.puts "---------current_node : #{@current_node}------"
+                @current_node = found_node
+                $stderr.puts "---------found current_node : #{@current_node}------"
+              else
+                $stderr.puts "---------THIS SHOULD NOT HAPPEN------"
+              end
+            end
+          end
+
+          if dwarfdump_file_line.include? "AT_type" and currently_seeing_tag(tag_stack).include? "TAG_subprogram"
+            name_match = at_type_subprogram_regex.match(dwarfdump_file_line) #extract return type from method call
+            if name_match != nil # ignore  "SEL"
+              name = name_match[0]
+              current_node.add_dependency(name)
+              $stderr.puts "---------dependency: #{name}----TAG_subprogram---AT_type---"
+            end
+          end
+
+          if dwarfdump_file_line.include? "AT_type" and currently_seeing_tag(tag_stack).include? "TAG_formal_parameter"
+            name_match = at_type_formal_parameter_regex.match(dwarfdump_file_line) #extract class name from method call
+            if name_match != nil # ignore  "SEL"
+              name = name_match[0]
+              if name.include?("const ") or name.include?("SEL") or name.include?("char") or name.include?("block_literal") #ignore self (const ViewController*)
+                #do nothing
+              else
+                $stderr.puts "---------dependency: #{name}----TAG_subprogram---AT_type---"
+                current_node.add_dependency(name)
+              end
             end
           end
         end
@@ -187,10 +197,16 @@ class DwarfdumpHierarchyCreator
     return tag_stack.peek_tag_name(-2)
   end
 
-  def dwarfdump_tag_pointers_in_file(filename)
-    IO.popen("dwarfdump \"#{filename.strip}\" ") { |fd|
-      fd.each { |line| yield line }
-    }
+  def dwarfdump_tags_in_file(filename)
+    #only do the below for objc files, ignore swift
+    result = `dwarfdump #{filename.strip} | grep AT_language`
+    match_language = /(?<=\(\s)(.*?)(?=\s\))/.match(result)
+    name = match_language[0]
+    if name.include?("DW_LANG_ObjC")
+      IO.popen("dwarfdump \"#{filename.strip}\" ") { |fd|
+        fd.each { |line| yield line }
+      }
+    end
   end
 
   def update_tag_hierarchy (tag_hierarchy_node, tag_stack)
