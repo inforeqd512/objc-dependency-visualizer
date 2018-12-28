@@ -101,8 +101,8 @@ class DwarfdumpHierarchyCreator
             if dwarfdump_file_line.include? "AT_name" and currently_seeing_tag(tag_stack).include? "TAG_structure_type"
             name_match = at_name_regex.match(dwarfdump_file_line) #extract subclass name between apostrophe
             name = name_match[0]
-            if name.include?("objc_selector")
-              #remove the current node created at structure node from dependency as we want to ignore it and nil the current node 
+            if name.include?("objc_selector") #ignore structure with objc_selector
+              #when ignoring the structure with name, remove the current node created at structure node from dependency as we want to ignore it and so nil the current node 
               dependency.pop
               current_node = nil
               $stderr.puts "-----TAG_structure_type----AT_name----current_node = nil---"
@@ -120,7 +120,7 @@ class DwarfdumpHierarchyCreator
           end
 
           if dwarfdump_file_line.include? "AT_type" and currently_seeing_tag(tag_stack).include? "TAG_APPLE_Property"
-            name_match = at_type_property_regex.match(dwarfdump_file_line) #extract property name
+            name_match = at_type_property_regex.match(dwarfdump_file_line) #extract property name ending in *
             if name_match != nil # ignore  "id"
               name = name_match[0]
               current_node.add_dependency(name)
@@ -143,7 +143,7 @@ class DwarfdumpHierarchyCreator
                 @current_node = found_node
                 $stderr.puts "---------found current_node : #{@current_node}------"
               else
-                $stderr.puts "---------THIS SHOULD NOT HAPPEN------"
+                $stderr.puts "---------THIS SHOULD NOT HAPPEN------" #check when this happens whether we need to tackle this
               end
             end
           end
@@ -176,7 +176,6 @@ class DwarfdumpHierarchyCreator
   end
 
   def find_node (name, node_list)
-
     found_node = nil
     for node in node_list
       if node.subclass == name
@@ -184,9 +183,7 @@ class DwarfdumpHierarchyCreator
         break        
       end
     end
-
     return found_node
-
   end
 
   def currently_seeing_tag (tag_stack)
@@ -210,7 +207,6 @@ class DwarfdumpHierarchyCreator
   end
 
   def update_tag_hierarchy (tag_hierarchy_node, tag_stack)
-
     # $stderr.puts "-----tag_stack: #{tag_stack}----"
     if tag_stack.peek_last == nil
       tag_stack.push tag_hierarchy_node
@@ -238,8 +234,8 @@ class DwarfdumpHierarchyCreator
       end
     end
     return 0
-
   end
+
 end
 
 class Stack
@@ -302,7 +298,7 @@ class DependencyHierarchyNode
   def initialize
     @subclass = ""
     @superclass = ""
-    @dependency = Set.new
+    @dependency = Set.new #unique entries for dependent classes
   end
 
   def add_dependency (dependent_node)
