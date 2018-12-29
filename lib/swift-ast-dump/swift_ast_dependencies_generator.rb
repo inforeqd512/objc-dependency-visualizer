@@ -23,6 +23,32 @@ class SwiftAstDependenciesGenerator
     @tree
   end
 
+  #get list of paths which should be used to find swift source files
+  def swift_files_path_list (swift_files_path, swift_ignore_folders)
+
+    paths = []
+
+    IO.popen("find #{swift_files_path} -type d -depth 1") { |f|
+      f.each do |line|
+        ignore_folder_match = false
+        for ignore_folder in swift_ignore_folders do
+          if line.include?(ignore_folder)
+            ignore_folder_match = true
+            break
+          end
+        end
+        
+        if ignore_folder_match == false
+          paths << line
+        end
+      end
+    }
+    paths.each { |item|
+      $stderr.puts "----#{item}"
+    } 
+    return paths
+  end
+
   def scan_source_files
     source_files = @ast_tree.find_nodes("source_file")
     return scan_source_files_classes(@ast_tree) if source_files.empty?
