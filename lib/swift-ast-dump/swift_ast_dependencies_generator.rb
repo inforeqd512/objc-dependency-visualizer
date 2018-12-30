@@ -3,24 +3,26 @@ require 'swift-ast-dump/swift_ast_parser'
 
 class SwiftAstDependenciesGenerator
 
-  def initialize(ast_file, dump_parsed_tree, verbose = false)
-    @ast_file = ast_file
+  def initialize(swift_files_path, swift_ignore_folders, swift_ast_show_parsed_tree, verbose = false)
+    @swift_files_path = swift_files_path
+    @swift_ignore_folders = swift_ignore_folders
     @verbose = verbose
-    @dump_parsed_tree = dump_parsed_tree
+    @dump_parsed_tree = swift_ast_show_parsed_tree
   end
 
   # @return [DependencyTree]
   def generate_dependencies
 
     @tree = DependencyTree.new
-    @context = []
     @generics_context = []
 
-    @ast_tree = SwiftAST::Parser.new().parse_build_log_output(File.read(@ast_file))
-    @ast_tree.dump if @dump_parsed_tree
-    scan_source_files
+    folder_paths = swift_files_path_list(@swift_files_path, @swift_ignore_folders)
+    swift_files_list = swift_files_list(folder_paths)
+    # @ast_tree = SwiftAST::Parser.new().parse_build_log_output(File.read(@ast_file))
+    # @ast_tree.dump if @dump_parsed_tree
+    # scan_source_files
 
-    @tree
+    # @tree
   end
 
   #get the list of swift files 
