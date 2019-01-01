@@ -45,33 +45,51 @@ class ASTHierarchyCreator
     dependency = []
     current_node = nil
 
+    is_swift_tag = /<range:/ #if the 'range' word appears then its a swift tag line
+
+
     ast_tags_in_file(filename) do |ast_file_line|
+
       $stderr.puts ast_file_line
+
+      if is_swift_tag.match(ast_file_line) != nil
+        $stderr.puts("--------is_swift_tag-------------")
+        tag_node = SwiftTagHierarchyNode.new (ast_file_line)
+        # num_nodes_popped = update_tag_hierarchy(tag_node, tag_stack)
+        # $stderr.puts "-----num_nodes_popped: #{num_nodes_popped}------"
+        #create array from num_nodes_popped from the dependency and add it to dependencies of the node previous to these
+      end
+
     end
   end
 
   def ast_tags_in_file(filename)        
     $stderr.puts("--------ast_tags_in_file: #{filename}-------------")
-    IO.popen("/Users/mistrys/Documents/Development/swift-ast/.build/release/swift-ast -dump-ast #{filename}") { |fd|
+    IO.popen("/Users/mistrys/Documents/Development/swift-ast-fork/.build/release/swift-ast -dump-ast #{filename}") { |fd|
       fd.each { |line| yield line }
     }
   end
 end
 
-class TagHierarchyNode
+class SwiftTagHierarchyNode
   attr_reader :level_spaces_length, :tag_name
 
   def initialize tag_line
-    $stderr.puts tag_line
     @level_spaces_length = extract_tag_level (tag_line)
-    @tag_name = /TAG.*?\s/.match(tag_line)[0]
+    @tag_name = /(\w*)(?=\s<)/.match(tag_line)[0] # extracts "import_decl" from sentence like import_decl <range:
+    $stderr.puts("-------tag_name: #{tag_name}----------")
+
   end
 
   def extract_tag_level (tag_line)
-    level_space_regex = /(?<=:)(\s*)(?=TAG)/
+    $stderr.puts("--------extract_tag_level-------")
+
+    level_space_regex = /(\s*)(?=[a-z])/ # extracts spaces in the beginning of sentence like import_decl <range:
     level_spaces_match = level_space_regex.match(tag_line)
     level_spaces = level_spaces_match[0]
     level_spaces_length = level_spaces.length
+    $stderr.puts("--------level_spaces_length: #{level_spaces_length}-------")
+
     return level_spaces_length
   end
 

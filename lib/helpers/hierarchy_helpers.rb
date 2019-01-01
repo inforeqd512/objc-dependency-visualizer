@@ -1,4 +1,6 @@
 
+require 'set'
+
 class Stack
   def initialize
     @data = []
