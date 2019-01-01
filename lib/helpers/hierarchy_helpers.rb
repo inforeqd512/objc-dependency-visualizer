@@ -22,12 +22,8 @@ class Stack
     return @data.last
   end
 
-  def peek_tag_name index
-    if @data[index]
-      return @data[index].tag_name      
-    else
-      return "No Tag" #should not happen
-    end
+  def currently_seeing_tag
+    return peek_last.tag_name
   end
 
   def count
@@ -47,4 +43,34 @@ class DependencyHierarchyNode
   def add_dependency (dependent_node)
     @dependency.add dependent_node    
   end
+end
+
+def update_tag_hierarchy (tag_hierarchy_node, tag_stack)
+  # $stderr.puts "-----tag_stack: #{tag_stack}----"
+  if tag_stack.peek_last == nil
+    tag_stack.push tag_hierarchy_node
+    # $stderr.puts "----push---#{tag_hierarchy_node.level_spaces_length}"
+  else
+    if tag_stack.peek_last.level_spaces_length < tag_hierarchy_node.level_spaces_length
+      tag_stack.push tag_hierarchy_node
+      # $stderr.puts "----push---#{tag_hierarchy_node.level_spaces_length}"
+    else
+      if tag_stack.peek_last.level_spaces_length == tag_hierarchy_node.level_spaces_length
+        tag_stack.push tag_hierarchy_node
+        # $stderr.puts "----push---#{tag_hierarchy_node.level_spaces_length}"
+      else
+        num_nodes_popped = 0
+        while tag_stack.peek_last.level_spaces_length > tag_hierarchy_node.level_spaces_length
+          x = tag_stack.pop
+          num_nodes_popped += 1
+          # $stderr.puts "--------pop---#{x.level_spaces_length}"
+        end
+        tag_stack.push tag_hierarchy_node
+        # $stderr.puts "----push---#{tag_hierarchy_node.level_spaces_length}"
+
+        return num_nodes_popped
+      end
+    end
+  end
+  return 0
 end

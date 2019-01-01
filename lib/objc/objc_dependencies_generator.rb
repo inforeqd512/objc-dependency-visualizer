@@ -72,33 +72,31 @@ class DwarfdumpHierarchyCreator
     at_type_formal_parameter_regex = /(?<=\s\(\s)(.*?)(?=\*)/
     at_type_subprogram_regex = at_type_formal_parameter_regex
 
-    at_name_regex = /(?<=")(.*)(?=")/
+    subclass_name_regex = /(?<=")(.*)(?=")/ #from at_name tag
     at_name_subprogram_regex = /(?<=\[)(.*?)(?=\s)/
     at_name_subprogram_name_category_regex = /(.*?)(?=\()/
 
-    dwarfdump_tags_in_file(filename) do |dwarfdump_file_line|
+    dwarfdump_tags_in_file(filename) do |file_line|
 
         # Finding the name in types
         # AT_type( {0x00000456} ( objc_object ) )
-        $stderr.puts dwarfdump_file_line
+        $stderr.puts file_line
 
-        if dwarfdump_file_line.include? "TAG_"
-          tag_node = TagHierarchyNode.new (dwarfdump_file_line)
+        if file_line.include? "TAG_"
+          tag_node = TagHierarchyNode.new (file_line)
           num_nodes_popped = update_tag_hierarchy(tag_node, tag_stack)
           # $stderr.puts "-----num_nodes_popped: #{num_nodes_popped}------"
-          #create array from num_nodes_popped from the dependency and add it to dependencies of the node previous to these
         end
 
-        if dwarfdump_file_line.include? "TAG_structure_type" 
-          #if the structure does not already exist in the dependencies array else get that object
+        if file_line.include? "TAG_structure_type" 
           current_node = DependencyHierarchyNode.new
           $stderr.puts "----new node created: #{current_node}----TAG_structure_type--"
           dependency.push(current_node)
         end
 
         if current_node != nil # a file may contain several compile units, and those may contain no structures but only subprograms.. DECIDE WHAT TO DO FOR THESE, but ignore them for now
-            if dwarfdump_file_line.include? "AT_name" and currently_seeing_tag(tag_stack).include? "TAG_structure_type"
-            name_match = at_name_regex.match(dwarfdump_file_line) #extract subclass name between apostrophe
+          if file_line.include? "AT_name" and tag_stack.currently_seeing_tag.include? "TAG_structure_type"
+            name_match = subclass_name_regex.match(file_line) #extract subclass name between apostrophe
             name = name_match[0]
             if name.include?("objc_selector") #ignore structure with objc_selector
               #when ignoring the structure with name, remove the current node created at structure node from dependency as we want to ignore it and so nil the current node 
@@ -111,15 +109,15 @@ class DwarfdumpHierarchyCreator
             end
           end
 
-          if dwarfdump_file_line.include? "AT_type" and currently_seeing_tag(tag_stack).include? "TAG_inheritance"
-            name_match = at_type_regex.match(dwarfdump_file_line) #extract inheritance name between brackets
+          if file_line.include? "AT_type" and tag_stack.currently_seeing_tag.include? "TAG_inheritance"
+            name_match = at_type_regex.match(file_line) #extract inheritance name between brackets
             name = name_match[0]
             current_node.superclass = name
             $stderr.puts "---------superclass: #{name}-----TAG_inheritance---AT_type---"
           end
 
-          if dwarfdump_file_line.include? "AT_type" and currently_seeing_tag(tag_stack).include? "TAG_APPLE_Property"
-            name_match = at_type_property_regex.match(dwarfdump_file_line) #extract property name ending in *
+          if file_line.include? "AT_type" and tag_stack.currently_seeing_tag.include? "TAG_APPLE_Property"
+            name_match = at_type_property_regex.match(file_line) #extract property name ending in *
             if name_match != nil # ignore  "id"
               name = name_match[0]
               current_node.add_dependency(name)
@@ -127,8 +125,8 @@ class DwarfdumpHierarchyCreator
             end
           end
 
-          if dwarfdump_file_line.include? "AT_name" and currently_seeing_tag(tag_stack).include? "TAG_subprogram"
-            name_match = at_name_subprogram_regex.match(dwarfdump_file_line) #extract class name from method call
+          if file_line.include? "AT_name" and tag_stack.currently_seeing_tag.include? "TAG_subprogram"
+            name_match = at_name_subprogram_regex.match(file_line) #extract class name from method call
             if name_match != nil # ignore  "SEL"
               name = name_match[0]
               if name.include?("(") #this is a method in a category
@@ -147,8 +145,8 @@ class DwarfdumpHierarchyCreator
             end
           end
 
-          if dwarfdump_file_line.include? "AT_type" and currently_seeing_tag(tag_stack).include? "TAG_subprogram"
-            name_match = at_type_subprogram_regex.match(dwarfdump_file_line) #extract return type from method call
+          if file_line.include? "AT_type" and tag_stack.currently_seeing_tag.include? "TAG_subprogram"
+            name_match = at_type_subprogram_regex.match(file_line) #extract return type from method call
             if name_match != nil # ignore  "SEL"
               name = name_match[0]
               current_node.add_dependency(name)
@@ -156,8 +154,8 @@ class DwarfdumpHierarchyCreator
             end
           end
 
-          if dwarfdump_file_line.include? "AT_type" and currently_seeing_tag(tag_stack).include? "TAG_formal_parameter"
-            name_match = at_type_formal_parameter_regex.match(dwarfdump_file_line) #extract class name from method call
+          if file_line.include? "AT_type" and tag_stack.currently_seeing_tag.include? "TAG_formal_parameter"
+            name_match = at_type_formal_parameter_regex.match(file_line) #extract class name from method call
             if name_match != nil # ignore  "SEL"
               name = name_match[0]
               if name.include?("const ") or name.include?("SEL") or name.include?("char") or name.include?("block_literal") #ignore self (const ViewController*)
@@ -185,14 +183,6 @@ class DwarfdumpHierarchyCreator
     return found_node
   end
 
-  def currently_seeing_tag (tag_stack)
-    return tag_stack.peek_last.tag_name
-  end
-
-  def last_seen_tag (tag_stack)
-    return tag_stack.peek_tag_name(-2)
-  end
-
   def dwarfdump_tags_in_file(filename)
     #only do the below for objc files, ignore swift
     result = `dwarfdump #{filename.strip} | grep AT_language`
@@ -203,36 +193,6 @@ class DwarfdumpHierarchyCreator
         fd.each { |line| yield line }
       }
     end
-  end
-
-  def update_tag_hierarchy (tag_hierarchy_node, tag_stack)
-    # $stderr.puts "-----tag_stack: #{tag_stack}----"
-    if tag_stack.peek_last == nil
-      tag_stack.push tag_hierarchy_node
-      # $stderr.puts "----push---#{tag_hierarchy_node.level_spaces_length}"
-    else
-      if tag_stack.peek_last.level_spaces_length < tag_hierarchy_node.level_spaces_length
-        tag_stack.push tag_hierarchy_node
-        # $stderr.puts "----push---#{tag_hierarchy_node.level_spaces_length}"
-      else
-        if tag_stack.peek_last.level_spaces_length == tag_hierarchy_node.level_spaces_length
-          tag_stack.push tag_hierarchy_node
-          # $stderr.puts "----push---#{tag_hierarchy_node.level_spaces_length}"
-        else
-          num_nodes_popped = 0
-          while tag_stack.peek_last.level_spaces_length > tag_hierarchy_node.level_spaces_length
-            x = tag_stack.pop
-            num_nodes_popped += 1
-            # $stderr.puts "--------pop---#{x.level_spaces_length}"
-          end
-          tag_stack.push tag_hierarchy_node
-          # $stderr.puts "----push---#{tag_hierarchy_node.level_spaces_length}"
-
-          return num_nodes_popped
-        end
-      end
-    end
-    return 0
   end
 
 end
