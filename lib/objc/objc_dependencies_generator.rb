@@ -67,7 +67,7 @@ class DwarfdumpHierarchyCreator
     dependency = []
     current_node = nil
 
-    at_type_regex = /(?<=}\s\(\s)(.*?)(?=\s\))/
+    superclass_name_regex = /(?<=}\s\(\s)(.*?)(?=\s\))/ #from at_type_regex tag
     at_type_property_regex = /(?<=}\s\(\s)(.*?)(?=\*)/
     at_type_formal_parameter_regex = /(?<=\s\(\s)(.*?)(?=\*)/
     at_type_subprogram_regex = at_type_formal_parameter_regex
@@ -110,7 +110,7 @@ class DwarfdumpHierarchyCreator
           end
 
           if file_line.include? "AT_type" and tag_stack.currently_seeing_tag.include? "TAG_inheritance"
-            name_match = at_type_regex.match(file_line) #extract inheritance name between brackets
+            name_match = superclass_name_regex.match(file_line) #extract inheritance name between brackets
             name = name_match[0]
             current_node.superclass = name
             $stderr.puts "---------superclass: #{name}-----TAG_inheritance---AT_type---"

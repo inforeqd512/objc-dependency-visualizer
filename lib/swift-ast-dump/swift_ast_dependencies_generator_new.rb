@@ -47,7 +47,7 @@ class ASTHierarchyCreator
 
     is_swift_tag = /<range:/ #if the 'range' word appears then its a swift tag line
     subclass_name_regex = /(?<=:\s)(\w*)/ #in sentence with name:, get the subclass name from the : to end of sentence
-
+    superclass_name_regex = subclass_name_regex
 
     ast_tags_in_file(filename) do |file_line|
 
@@ -76,6 +76,12 @@ class ASTHierarchyCreator
         end
       end
 
+      if file_line.include? "parent_types:" and tag_stack.currently_seeing_tag.include? "class_decl"
+        name_match = superclass_name_regex.match(file_line) #extract super class name
+        name = name_match[0]
+        current_node.superclass = name
+        $stderr.puts "---------superclass: #{name}-----class_decl---parent_types:---"
+      end
 
     end
   end
