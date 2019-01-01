@@ -4,7 +4,7 @@ require 'optparse'
 require 'yaml'
 require 'json'
 require 'helpers/objc_dependency_tree_generator_helper'
-require 'swift/swift_dependencies_generator'
+require 'swift-ast-dump/swift_ast_dependencies_generator_new'
 require 'objc/objc_dependencies_generator'
 require 'sourcekitten/sourcekitten_dependencies_generator'
 require 'dependency_tree'
@@ -23,7 +23,6 @@ class DependencyTreeGenerator
     options = {}
 
     # Defaults
-    options[:derived_data_paths] = ['~/Library/Developer/Xcode/DerivedData', '~/Library/Caches/appCode*/DerivedData']
     options[:project_name] = ''
     options[:output_format] = 'json'
     options[:verbose] = true
@@ -101,19 +100,18 @@ class DependencyTreeGenerator
   end
 
   def build_dependency_tree
-    tree = generate_depdendency_tree
+    tree = generate_dependency_tree
     tree.filter { |item, _| is_valid_dest?(item, @exclusion_prefixes) } if @options[:ignore_primitive_types]
     tree.filter_links { |_ , _ , type | type == DependencyLinkType::INHERITANCE } if @options[:show_inheritance_only]
     tree
   end
 
-  def generate_depdendency_tree
+  def generate_dependency_tree
     return build_sourcekitten_dependency_tree if @options[:sourcekitten_dependencies_file]
-    return build_ast_dependency_tree if @options[:swift_files_path]
-    return tree_from_object_files_directory
+    return tree_for_objc_swift
   end
 
-  def tree_from_object_files_directory
+  def tree_for_objc_swift
     tree = DependencyTree.new
 
     return tree if !@options || @options.empty?
@@ -123,28 +121,24 @@ class DependencyTreeGenerator
     update_objc_tree_block = lambda { |source, source_type, dest, dest_type, link_type| tree.add_new(source, source_type, dest, dest_type, link_type) } 
 
     if @options[:derived_data_paths]
+      $stderr.puts "\n\n--------------objc enter--------------"
       @object_files_directories ||= find_object_files_directories
       return tree unless @object_files_directories
       ObjcDependenciesGenerator.new.generate_dependencies(@object_files_directories, &update_objc_tree_block)
     end
 
     if @options[:swift_files_path]
-      SwiftDependenciesGenerator.new.generate_dependencies(@object_files_directories, &update_tree_block)
+      $stderr.puts "\n\n--------------build_ast_dependency_tree--------------"
+      generator = SwiftAstDependenciesGeneratorNew.new(
+        @options[:swift_files_path],
+        @options[:swift_ignore_folders],
+        @options[:swift_ast_show_parsed_tree],
+      )
+      generator.generate_dependencies(&update_tree_block)
     end
 
     tree
   end  
-
-  def build_ast_dependency_tree
-    $stderr.puts "\n\n--------------build_ast_dependency_tree--------------"
-    require_relative 'swift-ast-dump/swift_ast_dependencies_generator'
-    generator = SwiftAstDependenciesGenerator.new(
-      @options[:swift_files_path],
-      @options[:swift_ignore_folders],
-      @options[:swift_ast_show_parsed_tree]
-    )
-    generator.generate_dependencies
-  end
 
   def build_sourcekitten_dependency_tree
     generator = SourcekittenDependenciesGenerator.new(
