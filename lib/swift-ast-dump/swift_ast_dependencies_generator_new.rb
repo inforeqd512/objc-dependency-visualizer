@@ -46,19 +46,36 @@ class ASTHierarchyCreator
     current_node = nil
 
     is_swift_tag = /<range:/ #if the 'range' word appears then its a swift tag line
+    subclass_name_regex = /(?<=:\s)(\w*)/ #in sentence with name:, get the subclass name from the : to end of sentence
 
 
-    ast_tags_in_file(filename) do |ast_file_line|
+    ast_tags_in_file(filename) do |file_line|
 
-      $stderr.puts ast_file_line
+      $stderr.puts file_line
 
-      if is_swift_tag.match(ast_file_line) != nil
+      if is_swift_tag.match(file_line) != nil
         $stderr.puts("--------is_swift_tag-------------")
-        tag_node = SwiftTagHierarchyNode.new (ast_file_line)
-        # num_nodes_popped = update_tag_hierarchy(tag_node, tag_stack)
-        # $stderr.puts "-----num_nodes_popped: #{num_nodes_popped}------"
-        #create array from num_nodes_popped from the dependency and add it to dependencies of the node previous to these
+        tag_node = SwiftTagHierarchyNode.new (file_line)
+        num_nodes_popped = update_tag_hierarchy(tag_node, tag_stack)
+        $stderr.puts "-----num_nodes_popped: #{num_nodes_popped}------\n\n"
       end
+
+      if file_line.include? "class_decl" 
+        #if the structure does not already exist in the dependencies array else get that object
+        current_node = DependencyHierarchyNode.new
+        $stderr.puts "----new node created: #{current_node}----class_decl--"
+        dependency.push(current_node)
+      end
+
+      if current_node != nil # swift file may have more than one top level nodes?
+        if file_line.include? "name:" and tag_stack.currently_seeing_tag.include? "class_decl"
+          name_match = subclass_name_regex.match(file_line) #extract subclass name 
+          name = name_match[0]
+          $stderr.puts "-----current_node: #{current_node}----subclass: #{name}----class_decl----name:---"
+          current_node.subclass = name
+        end
+      end
+
 
     end
   end
@@ -82,7 +99,6 @@ class SwiftTagHierarchyNode
   end
 
   def extract_tag_level (tag_line)
-    $stderr.puts("--------extract_tag_level-------")
 
     level_space_regex = /(\s*)(?=[a-z])/ # extracts spaces in the beginning of sentence like import_decl <range:
     level_spaces_match = level_space_regex.match(tag_line)
