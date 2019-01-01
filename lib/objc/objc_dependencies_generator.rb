@@ -1,4 +1,3 @@
-require 'set'
 require 'helpers/hierarchy_helpers'
 
 class ObjcDependenciesGenerator
@@ -68,19 +67,20 @@ class DwarfdumpHierarchyCreator
     dependency = []
     current_node = nil
 
+    at_type_regex = /(?<=}\s\(\s)(.*?)(?=\s\))/
+    at_type_property_regex = /(?<=}\s\(\s)(.*?)(?=\*)/
+    at_type_formal_parameter_regex = /(?<=\s\(\s)(.*?)(?=\*)/
+    at_type_subprogram_regex = at_type_formal_parameter_regex
+
+    at_name_regex = /(?<=")(.*)(?=")/
+    at_name_subprogram_regex = /(?<=\[)(.*?)(?=\s)/
+    at_name_subprogram_name_category_regex = /(.*?)(?=\()/
+
     dwarfdump_tags_in_file(filename) do |dwarfdump_file_line|
 
         # Finding the name in types
         # AT_type( {0x00000456} ( objc_object ) )
         $stderr.puts dwarfdump_file_line
-        at_type_regex = /(?<=}\s\(\s)(.*?)(?=\s\))/
-        at_type_property_regex = /(?<=}\s\(\s)(.*?)(?=\*)/
-        at_type_formal_parameter_regex = /(?<=\s\(\s)(.*?)(?=\*)/
-        at_type_subprogram_regex = at_type_formal_parameter_regex
-
-        at_name_regex = /(?<=")(.*)(?=")/
-        at_name_subprogram_regex = /(?<=\[)(.*?)(?=\s)/
-        at_name_subprogram_name_category_regex = /(.*?)(?=\()/
 
         if dwarfdump_file_line.include? "TAG_"
           tag_node = TagHierarchyNode.new (dwarfdump_file_line)
