@@ -24,6 +24,10 @@ class SwiftAstDependenciesGeneratorNew
 
     swift_files_list.each { |swift_filename| 
       swift_file_dependency_hierarchy = astHierarchyCreator.create_hierarchy(swift_filename)
+      @dependency.push(swift_file_dependency_hierarchy)
+      @dependency = @dependency.flatten()
+
+      print_hierarchy(@dependency)
 
       # ast_tree = SwiftAST::Parser.new().parse_build_log_output(result)
       # $stderr.puts("---------ast_tree--------")
@@ -114,15 +118,17 @@ class ASTHierarchyCreator
         end
 
         #formal parameters in function
-        if file_line.scan(/:/).count == 2 and tag_stack.currently_seeing_tag.include? "func_decl" # if the line contains 2 colons then it's a parameter decl line
+        if file_line.scan(/:/).count == 2 and tag_stack.currently_seeing_tag.include? "func_decl" # if the line contains 2 colons then it's a parameter decl
           name_match = function_formal_parameter_type_name_regex.match(file_line) 
           name = name_match[0]
           $stderr.puts "-----current_node: #{current_node}----formal parameters: #{name}----func_decl----0:<formal parameter name>:<formal parameter type>---"
           current_node.add_dependency(name)
         end
-
       end
     end
+
+    return dependency
+
   end
 
   def ast_tags_in_file(filename)        

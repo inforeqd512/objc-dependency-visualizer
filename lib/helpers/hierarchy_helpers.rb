@@ -90,4 +90,17 @@ def find_node (name, node_list)
   return found_node
 end
 
-  
+def print_hierarchy (dependency)
+  $stderr.puts "\n\n\n\n\n\n\n\n\n\n\n\n----------------------------------------"
+  dependency.each { |dependency_hierarchy_node|
+
+    $stderr.puts "--------------#{dependency_hierarchy_node}-----------------"
+    $stderr.puts "-----subclass: #{dependency_hierarchy_node.subclass}-----"
+    dependency_hierarchy_node.superclass_or_protocol.each { |node|
+      $stderr.puts "-----superclass_or_protocol: #{node}-----"
+    }
+    dependency_hierarchy_node.dependency.each { |node|
+      $stderr.puts "-----dependency: #{node}-----"
+    }
+  }
+end

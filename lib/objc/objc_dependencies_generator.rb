@@ -46,19 +46,6 @@ class ObjcDependenciesGenerator
     end  
   end
 
-  def print_hierarchy (dependency)
-    $stderr.puts "\n\n\n\n\n\n\n\n\n\n\n\n----------------------------------------"
-    dependency.each { |dependency_hierarchy_node|
-
-      $stderr.puts "--------------#{dependency_hierarchy_node}-----------------"
-      $stderr.puts "-----subclass: #{dependency_hierarchy_node.subclass}-----"
-      $stderr.puts "-----superclass_or_protocol: #{dependency_hierarchy_node.superclass_or_protocol}-----"
-      dependency_hierarchy_node.dependency.each { |node|
-        $stderr.puts "-----dependency: #{node}-----"
-      }
-    }
-  end
-
 end
 
 class DwarfdumpHierarchyCreator
@@ -78,6 +65,7 @@ class DwarfdumpHierarchyCreator
     at_name_subprogram_regex = /(?<=\[)(.*?)(?=\s)/
     at_name_subprogram_name_category_regex = /(.*?)(?=\()/
 
+    #class, protocol, property, category, return type, method parameter type 
     dwarfdump_tags_in_file(filename) do |file_line|
 
         # Finding the name in types
@@ -174,16 +162,6 @@ class DwarfdumpHierarchyCreator
     return dependency
   end
 
-  def find_node (name, node_list)
-    found_node = nil
-    for node in node_list
-      if node.subclass == name
-        found_node = node
-        break        
-      end
-    end
-    return found_node
-  end
 
   def dwarfdump_tags_in_file(filename)
     #only do the below for objc files, ignore swift
