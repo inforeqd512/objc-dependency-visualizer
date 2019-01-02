@@ -46,8 +46,9 @@ class ASTHierarchyCreator
     current_node = nil
 
     is_swift_tag = /<range:/ #if the 'range' word appears then its a swift tag line
-    subclass_name_regex = /(?<=:\s)(\w*)/ #in sentence with name:, get the subclass name from the : to end of sentence
+    subclass_name_regex = /(?<=:\s)(.*)/ #in sentence with name:, get the subclass name from the : to end of sentence
     superclass_name_regex = subclass_name_regex
+    property_name_regex = /(?<=identifier:\s`)(\w*)/ #property name from identifier: string
 
     ast_tags_in_file(filename) do |file_line|
 
@@ -76,11 +77,22 @@ class ASTHierarchyCreator
         end
       end
 
-      if file_line.include? "parent_types:" and tag_stack.currently_seeing_tag.include? "class_decl"
+      if file_line.include? "parent_types:" 
         name_match = superclass_name_regex.match(file_line) #extract super class name
         name = name_match[0]
-        current_node.superclass = name
-        $stderr.puts "---------superclass: #{name}-----class_decl---parent_types:---"
+        name.split(/\W\s/).each { |word|        
+          current_node.add_polymorphism(word)
+        }
+        $stderr.puts "---------superclass: #{name}-------parent_types:---"
+      end
+
+      if file_line.include? "identifier:" 
+        name_match = property_name_regex.match(file_line) #extract property name ending in *
+        if name_match != nil 
+          name = name_match[0]
+          current_node.add_dependency(name)
+          $stderr.puts "---------dependency: #{name}------identifier:-"
+        end
       end
 
     end
