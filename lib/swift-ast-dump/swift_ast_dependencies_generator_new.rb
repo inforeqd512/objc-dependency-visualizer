@@ -28,6 +28,10 @@ class SwiftAstDependenciesGeneratorNew
       @dependency = @dependency.flatten()
 
       print_hierarchy(@dependency)
+      #yield source and destination to create a tree
+      pair_source_dest(@dependency) do  |source, source_type, dest, dest_type, link_type|
+        yield source, source_type, dest, dest_type, link_type
+      end
 
       # ast_tree = SwiftAST::Parser.new().parse_build_log_output(result)
       # $stderr.puts("---------ast_tree--------")

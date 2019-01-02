@@ -116,15 +116,13 @@ class DependencyTreeGenerator
 
     return tree if !@options || @options.empty?
 
-
-    update_tree_block = lambda { |source, target| tree.add(source, target) } 
-    update_objc_tree_block = lambda { |source, source_type, dest, dest_type, link_type| tree.add_new(source, source_type, dest, dest_type, link_type) } 
+    update_tree_block = lambda { |source, source_type, dest, dest_type, link_type| tree.add_new(source, source_type, dest, dest_type, link_type) } 
 
     if @options[:derived_data_paths]
       $stderr.puts "\n\n--------------objc enter--------------"
       @object_files_directories ||= find_object_files_directories
       return tree unless @object_files_directories
-      ObjcDependenciesGenerator.new.generate_dependencies(@object_files_directories, &update_objc_tree_block)
+      ObjcDependenciesGenerator.new.generate_dependencies(@object_files_directories, &update_tree_block)
     end
 
     if @options[:swift_files_path]
@@ -132,7 +130,7 @@ class DependencyTreeGenerator
       generator = SwiftAstDependenciesGeneratorNew.new(
         @options[:swift_files_path],
         @options[:swift_ignore_folders],
-        @options[:swift_ast_show_parsed_tree],
+        @options[:swift_ast_show_parsed_tree]
       )
       generator.generate_dependencies(&update_tree_block)
     end

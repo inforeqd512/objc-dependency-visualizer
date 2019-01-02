@@ -20,18 +20,10 @@ class ObjcDependenciesGenerator
       @dependency = @dependency.flatten()
 
       print_hierarchy(@dependency)
-
-      #yeild source and destination to create a tree
-      @dependency.each { |dependency_hierarchy_node|
-        if dependency_hierarchy_node.superclass_or_protocol.count > 0 #ignore Apple's classes  
-          dependency_hierarchy_node.superclass_or_protocol.each { |name| #when no superclass means the Sublass is apples classes, ignore them
-            yield name, dependency_hierarchy_node.subclass, DependencyItemType::CLASS, DependencyItemType::CLASS, DependencyLinkType::INHERITANCE
-          }
-          dependency_hierarchy_node.dependency.each { |node|
-            yield dependency_hierarchy_node.subclass, node, DependencyItemType::CLASS, DependencyItemType::CLASS, DependencyLinkType::CALL
-          }
-        end
-      }
+      #yield source and destination to create a tree
+      pair_source_dest(@dependency) do  |source, source_type, dest, dest_type, link_type|
+        yield source, source_type, dest, dest_type, link_type
+      end
 
     end
 
