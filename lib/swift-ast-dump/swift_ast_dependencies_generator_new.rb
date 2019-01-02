@@ -23,9 +23,8 @@ class SwiftAstDependenciesGeneratorNew
     swift_files_list = swift_files_list(folder_paths)
 
     swift_files_list.each { |swift_filename| 
-      swift_file_dependency_hierarchy = astHierarchyCreator.create_hierarchy(swift_filename)
-      @dependency.push(swift_file_dependency_hierarchy)
-      @dependency = @dependency.flatten()
+      swift_file_dependency_hierarchy = astHierarchyCreator.create_hierarchy(swift_filename, @dependency)
+      @dependency = swift_file_dependency_hierarchy
 
       print_hierarchy(@dependency)
       #yield source and destination to create a tree
@@ -47,10 +46,10 @@ end
 
 class ASTHierarchyCreator
 
-  def create_hierarchy filename
+  def create_hierarchy filename, dependency
 
     tag_stack = Stack.new
-    dependency = []
+    dependency = dependency.dup
     current_node = nil
 
     is_swift_tag = /<range:/ #if the 'range' word appears then its a swift tag line
@@ -83,8 +82,17 @@ class ASTHierarchyCreator
         if file_line.include? "name:" and tag_stack.currently_seeing_tag.include? "class_decl"
           name_match = subclass_name_regex.match(file_line) #extract subclass name 
           name = name_match[0]
-          $stderr.puts "-----current_node: #{current_node}----subclass: #{name}----class_decl----name:---"
-          current_node.subclass = name
+          #find the node with the name and make it current
+          found_node = find_node(name, dependency)
+          if found_node != nil
+            dependency.pop #remove the node created at TAG_structure_type
+            $stderr.puts "--------class_decl-current_node : #{current_node}------"
+            current_node = found_node
+            $stderr.puts "--------class_decl-found current_node : #{current_node.subclass}----#{current_node.dependency.count}--"
+          else
+            $stderr.puts "-----current_node: #{current_node}----subclass: #{name}----class_decl----name:---"
+            current_node.subclass = name
+          end
         end
 
         if file_line.include? "parent_types:" and tag_stack.currently_seeing_tag.include? "class_decl"
@@ -113,9 +121,9 @@ class ASTHierarchyCreator
 
           found_node = find_node(name, dependency)
           if found_node != nil
-            $stderr.puts "---------current_node : #{@current_node}------"
-            @current_node = found_node #make the found node as current node so that when the next identifier: sentence is found, then the name is added to dependent_node
-            $stderr.puts "---------found current_node : #{@current_node}------"
+            $stderr.puts "---------current_node : #{current_node}------"
+            current_node = found_node #make the found node as current node so that when the next identifier: sentence is found, then the name is added to dependent_node
+            $stderr.puts "---------found current_node : #{current_node}------"
           else
             $stderr.puts "---------THIS SHOULD NOT HAPPEN------" #check when this happens whether we need to tackle this
           end

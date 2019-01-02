@@ -91,7 +91,7 @@ def find_node (name, node_list)
 end
 
 def print_hierarchy (dependency)
-  $stderr.puts "\n\n\n\n\n\n\n\n\n\n\n\n----------------------------------------"
+  $stderr.puts "\n\n\n\n\n\n\n\n\n\n\n\n--------------print_hierarchy--------------------------"
   dependency.each { |dependency_hierarchy_node|
 
     $stderr.puts "--------------#{dependency_hierarchy_node}-----------------"

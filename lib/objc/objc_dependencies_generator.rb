@@ -15,9 +15,8 @@ class ObjcDependenciesGenerator
       # Full output example https://gist.github.com/PaulTaykalo/62cd5d545301c8355cb5
       # With grep output example https://gist.github.com/PaulTaykalo/9d5ecbce8a30a412cdbe
       $stderr.puts "-----object_files_dir: #{object_files_dir}----filename: #{filename}"
-      object_file_dependency_hierarchy = dwarfdumpHierarchyCreator.create_hierarchy(filename)
-      @dependency.push(object_file_dependency_hierarchy)
-      @dependency = @dependency.flatten()
+      object_file_dependency_hierarchy = dwarfdumpHierarchyCreator.create_hierarchy(filename, @dependency)
+      @dependency = object_file_dependency_hierarchy
 
       print_hierarchy(@dependency)
       #yield source and destination to create a tree
@@ -42,10 +41,10 @@ end
 
 class DwarfdumpHierarchyCreator
 
-  def create_hierarchy filename
+  def create_hierarchy filename, dependency
 
     tag_stack = Stack.new
-    dependency = []
+    dependency = dependency.dup
     current_node = nil
 
     superclass_name_regex = /(?<=}\s\(\s)(.*?)(?=\s\))/ #from at_type_regex tag
@@ -86,8 +85,17 @@ class DwarfdumpHierarchyCreator
               current_node = nil
               $stderr.puts "-----TAG_structure_type----AT_name----current_node = nil---"
             else
-              $stderr.puts "-----current_node: #{current_node}----subclass: #{name}----TAG_structure_type----AT_name---"
-              current_node.subclass = name
+              #find the node with the name and make it current
+              found_node = find_node(name, dependency)
+              if found_node != nil
+                dependency.pop #remove the node created at TAG_structure_type
+                $stderr.puts "--------TAG_structure_type-current_node : #{current_node}------"
+                current_node = found_node
+                $stderr.puts "--------TAG_structure_type-found current_node : #{current_node.subclass}----#{current_node.dependency.count}--"
+              else
+                $stderr.puts "-----current_node: #{current_node}----subclass: #{name}----TAG_structure_type----AT_name---"
+                current_node.subclass = name
+              end
             end
           end
 
@@ -118,9 +126,9 @@ class DwarfdumpHierarchyCreator
               #find the node with the name and make it current
               found_node = find_node(name, dependency)
               if found_node != nil
-                $stderr.puts "---------current_node : #{@current_node}------"
-                @current_node = found_node
-                $stderr.puts "---------found current_node : #{@current_node}------"
+                $stderr.puts "---------current_node : #{current_node}------"
+                current_node = found_node
+                $stderr.puts "---------found current_node : #{current_node.subclass}----#{current_node.dependency.count}--"
               else
                 $stderr.puts "---------THIS SHOULD NOT HAPPEN------" #check when this happens whether we need to tackle this
               end
