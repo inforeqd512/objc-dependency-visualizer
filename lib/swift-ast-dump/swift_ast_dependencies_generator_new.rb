@@ -49,6 +49,7 @@ class ASTHierarchyCreator
     subclass_name_regex = /(?<=:\s)(.*)/ #in sentence with name:, get the subclass name from the : to end of sentence
     superclass_name_regex = subclass_name_regex
     property_name_regex = /(?<=identifier:\s`)(\w*)/ #property name from identifier: string
+    extension_subclass_name_regex = subclass_name_regex
 
     ast_tags_in_file(filename) do |file_line|
 
@@ -92,6 +93,20 @@ class ASTHierarchyCreator
           name = name_match[0]
           current_node.add_dependency(name)
           $stderr.puts "---------dependency: #{name}------identifier:-"
+        end
+      end
+
+      if file_line.include? "type:" and tag_stack.currently_seeing_tag.include? "ext_decl"
+        name_match = extension_subclass_name_regex.match(file_line) #extract class name for which this is an extension
+        name = name_match[0]
+
+        found_node = find_node(name, dependency)
+        if found_node != nil
+          $stderr.puts "---------current_node : #{@current_node}------"
+          @current_node = found_node #make the found node as current node so that when the next identifier: sentence is found, then the name is added to dependent_node
+          $stderr.puts "---------found current_node : #{@current_node}------"
+        else
+          $stderr.puts "---------THIS SHOULD NOT HAPPEN------" #check when this happens whether we need to tackle this
         end
       end
 

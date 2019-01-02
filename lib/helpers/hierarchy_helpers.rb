@@ -78,3 +78,16 @@ def update_tag_hierarchy (tag_hierarchy_node, tag_stack)
   end
   return 0
 end
+
+def find_node (name, node_list)
+  found_node = nil
+  for node in node_list
+    if node.subclass == name
+      found_node = node
+      break        
+    end
+  end
+  return found_node
+end
+
+  
