@@ -50,7 +50,9 @@ class ASTHierarchyCreator
     superclass_name_regex = subclass_name_regex
     property_name_regex = /(?<=identifier:\s`)(\w*)/ #property name from identifier: string
     extension_subclass_name_regex = subclass_name_regex
+    function_formal_parameter_type_name_regex = /(?<=:\s)(\w*)(?=\n)/ # exgracts prrrr1 from     0: formalParamOne: prrrr1\n
 
+    #class, protocol, property, category, return type, method parameter type, enum, struct
     ast_tags_in_file(filename) do |file_line|
 
       $stderr.puts file_line
@@ -76,40 +78,50 @@ class ASTHierarchyCreator
           $stderr.puts "-----current_node: #{current_node}----subclass: #{name}----class_decl----name:---"
           current_node.subclass = name
         end
-      end
 
-      if file_line.include? "parent_types:" 
-        name_match = superclass_name_regex.match(file_line) #extract super class name and protocol name
-        name = name_match[0]
-        name.split(/\W\s/).each { |word|        
-          current_node.add_polymorphism(word)
-        }
-        $stderr.puts "---------superclass: #{name}-------parent_types:---"
-      end
-
-      if file_line.include? "identifier:" 
-        name_match = property_name_regex.match(file_line) #extract property name ending in *
-        if name_match != nil 
+        if file_line.include? "parent_types:" and tag_stack.currently_seeing_tag.include? "class_decl"
+          name_match = superclass_name_regex.match(file_line) #extract super class name and protocol name
           name = name_match[0]
+          name.split(/\W\s/).each { |word|        
+            current_node.add_polymorphism(word)
+          }
+          $stderr.puts "---------superclass: #{name}-------parent_types:---"
+        end
+
+        #property in class and return type in function or extension method
+        if file_line.include? "identifier:" and tag_stack.currently_seeing_tag.include? "identifier_expr"
+          name_match = property_name_regex.match(file_line) #extract property name ending in *
+          if name_match != nil 
+            name = name_match[0]
+            current_node.add_dependency(name)
+            $stderr.puts "---------dependency: #{name}------identifier:-"
+          end
+        end
+
+        #class for which this is extension declarqtion
+        if file_line.include? "type:" and tag_stack.currently_seeing_tag.include? "ext_decl"
+          name_match = extension_subclass_name_regex.match(file_line) #extract class name for which this is an extension
+          name = name_match[0]
+
+          found_node = find_node(name, dependency)
+          if found_node != nil
+            $stderr.puts "---------current_node : #{@current_node}------"
+            @current_node = found_node #make the found node as current node so that when the next identifier: sentence is found, then the name is added to dependent_node
+            $stderr.puts "---------found current_node : #{@current_node}------"
+          else
+            $stderr.puts "---------THIS SHOULD NOT HAPPEN------" #check when this happens whether we need to tackle this
+          end
+        end
+
+        #formal parameters in function
+        if file_line.scan(/:/).count == 2 and tag_stack.currently_seeing_tag.include? "func_decl" # if the line contains 2 colons then it's a parameter decl line
+          name_match = function_formal_parameter_type_name_regex.match(file_line) 
+          name = name_match[0]
+          $stderr.puts "-----current_node: #{current_node}----formal parameters: #{name}----func_decl----0:<formal parameter name>:<formal parameter type>---"
           current_node.add_dependency(name)
-          $stderr.puts "---------dependency: #{name}------identifier:-"
         end
+
       end
-
-      if file_line.include? "type:" and tag_stack.currently_seeing_tag.include? "ext_decl"
-        name_match = extension_subclass_name_regex.match(file_line) #extract class name for which this is an extension
-        name = name_match[0]
-
-        found_node = find_node(name, dependency)
-        if found_node != nil
-          $stderr.puts "---------current_node : #{@current_node}------"
-          @current_node = found_node #make the found node as current node so that when the next identifier: sentence is found, then the name is added to dependent_node
-          $stderr.puts "---------found current_node : #{@current_node}------"
-        else
-          $stderr.puts "---------THIS SHOULD NOT HAPPEN------" #check when this happens whether we need to tackle this
-        end
-      end
-
     end
   end
 
