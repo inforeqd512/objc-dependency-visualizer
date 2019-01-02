@@ -32,12 +32,16 @@ class Stack
 end
 
 class DependencyHierarchyNode
-  attr_accessor :subclass, :superclass, :dependency
+  attr_accessor :subclass, :superclass_or_protocol, :dependency
 
   def initialize
     @subclass = ""
-    @superclass = ""
+    @superclass_or_protocol = Set.new #unique entries for super classes and protocols
     @dependency = Set.new #unique entries for dependent classes
+  end
+
+  def add_polymorphism (superclass_or_protocol_name)
+    @superclass_or_protocol.add superclass_or_protocol_name    
   end
 
   def add_dependency (dependent_node)

@@ -23,8 +23,10 @@ class ObjcDependenciesGenerator
 
       #yeild source and destination to create a tree
       @dependency.each { |dependency_hierarchy_node|
-        if dependency_hierarchy_node.superclass.length > 0 #ignore Apple's classes  
-          yield dependency_hierarchy_node.superclass, dependency_hierarchy_node.subclass, DependencyItemType::CLASS, DependencyItemType::CLASS, DependencyLinkType::INHERITANCE
+        if dependency_hierarchy_node.superclass_or_protocol.count > 0 #ignore Apple's classes  
+          dependency_hierarchy_node.superclass_or_protocol.each { |name| #when no superclass means the Sublass is apples classes, ignore them
+            yield name, dependency_hierarchy_node.subclass, DependencyItemType::CLASS, DependencyItemType::CLASS, DependencyLinkType::INHERITANCE
+          }
           dependency_hierarchy_node.dependency.each { |node|
             yield dependency_hierarchy_node.subclass, node, DependencyItemType::CLASS, DependencyItemType::CLASS, DependencyLinkType::CALL
           }
@@ -50,7 +52,7 @@ class ObjcDependenciesGenerator
 
       $stderr.puts "--------------#{dependency_hierarchy_node}-----------------"
       $stderr.puts "-----subclass: #{dependency_hierarchy_node.subclass}-----"
-      $stderr.puts "-----superclass: #{dependency_hierarchy_node.superclass}-----"
+      $stderr.puts "-----superclass_or_protocol: #{dependency_hierarchy_node.superclass_or_protocol}-----"
       dependency_hierarchy_node.dependency.each { |node|
         $stderr.puts "-----dependency: #{node}-----"
       }
@@ -68,7 +70,7 @@ class DwarfdumpHierarchyCreator
     current_node = nil
 
     superclass_name_regex = /(?<=}\s\(\s)(.*?)(?=\s\))/ #from at_type_regex tag
-    at_type_property_regex = /(?<=}\s\(\s)(.*?)(?=\*)/
+    property_name_regex = /(?<=}\s\(\s)(.*?)(?=\*)/  #from at_type_regex tag
     at_type_formal_parameter_regex = /(?<=\s\(\s)(.*?)(?=\*)/
     at_type_subprogram_regex = at_type_formal_parameter_regex
 
@@ -109,15 +111,15 @@ class DwarfdumpHierarchyCreator
             end
           end
 
-          if file_line.include? "AT_type" and tag_stack.currently_seeing_tag.include? "TAG_inheritance"
+          if file_line.include? "AT_type" and tag_stack.currently_seeing_tag.include? "TAG_inheritance" #how are protocols seen
             name_match = superclass_name_regex.match(file_line) #extract inheritance name between brackets
             name = name_match[0]
-            current_node.superclass = name
+            current_node.add_polymorphism(name)
             $stderr.puts "---------superclass: #{name}-----TAG_inheritance---AT_type---"
           end
 
           if file_line.include? "AT_type" and tag_stack.currently_seeing_tag.include? "TAG_APPLE_Property"
-            name_match = at_type_property_regex.match(file_line) #extract property name ending in *
+            name_match = property_name_regex.match(file_line) #extract property name ending in *
             if name_match != nil # ignore  "id"
               name = name_match[0]
               current_node.add_dependency(name)
