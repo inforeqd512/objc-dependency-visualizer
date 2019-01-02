@@ -111,7 +111,7 @@ class DwarfdumpHierarchyCreator
             end
           end
 
-          if file_line.include? "AT_type" and tag_stack.currently_seeing_tag.include? "TAG_inheritance" #how are protocols seen
+          if file_line.include? "AT_type" and tag_stack.currently_seeing_tag.include? "TAG_inheritance" #only superclasses are reported, the protocols are not directly seen. the only way is tag_subprogram, protocol method nama
             name_match = superclass_name_regex.match(file_line) #extract inheritance name between brackets
             name = name_match[0]
             current_node.add_polymorphism(name)

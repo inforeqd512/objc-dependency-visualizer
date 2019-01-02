@@ -78,7 +78,7 @@ class ASTHierarchyCreator
       end
 
       if file_line.include? "parent_types:" 
-        name_match = superclass_name_regex.match(file_line) #extract super class name
+        name_match = superclass_name_regex.match(file_line) #extract super class name and protocol name
         name = name_match[0]
         name.split(/\W\s/).each { |word|        
           current_node.add_polymorphism(word)
