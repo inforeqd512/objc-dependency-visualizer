@@ -126,7 +126,7 @@ class DependencyTreeGenerator
     end
 
     if @options[:swift_files_path]
-      $stderr.puts "\n\n--------------build_ast_dependency_tree--------------"
+      $stderr.puts "\n\n--------------objc enter: build_ast_dependency_tree--------------"
       generator = SwiftAstDependenciesGeneratorNew.new(
         @options[:swift_files_path],
         @options[:swift_ignore_folders],

@@ -68,6 +68,7 @@ class SwiftPrimitives
       'CInt',
       'CLong',
       'CLongLong',
+      'Codable',
       'CShort',
       'CSignedChar',
       'CUnsignedChar',
@@ -76,6 +77,8 @@ class SwiftPrimitives
       'CUnsignedLongLong',
       'CUnsignedShort',
       'CWideChar',
+      'Decodable',
+      'Encodable',
       'ExtendedGraphemeClusterType',
       'Float32',
       'Float64',
@@ -155,6 +158,7 @@ class SwiftPrimitives
       'Range',
       'RangeGenerator',
       'RawByte',
+      'RawRepresentable',
       'Repeat',
       'ReverseCollection',
       'ReverseIndex',
@@ -249,7 +253,9 @@ class SwiftPrimitives
       'TimeInterval',
       'Timer',
       'URLRequest',
-      'URLCache'      
+      'URLCache',
+#Project
+      'NibProviding',
     ]).freeze
 
   def self.primitive_types
