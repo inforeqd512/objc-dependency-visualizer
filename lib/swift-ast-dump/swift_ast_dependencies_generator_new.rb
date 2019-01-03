@@ -41,6 +41,8 @@ class ASTHierarchyCreator
 
   def create_hierarchy filename, dependency
 
+    $stderr.puts("-------filename: #{filename}-----")
+
     tag_stack = Stack.new
     dependency = dependency.dup
     current_node = nil
@@ -50,11 +52,22 @@ class ASTHierarchyCreator
     superclass_name_regex = subclass_name_regex
     property_name_regex = /(?<=identifier:\s`)(\w*)/ #property name from identifier: string
     extension_subclass_name_regex = subclass_name_regex
-    function_formal_parameter_type_name_regex = /(?<=:\s)(\w*)(?=\n)/ # exgracts prrrr1 from     0: formalParamOne: prrrr1\n
-    return_type_regex = /(?<=`)(\w*)(?=`)/ #extract tye between `Int`
-    parameter_list_found_regex = /^\s*[0-9]*:/ #extracts '      0:' from '      0: forKey key: String' parameter string to identify that its a parameter
-    parameter_type_regex = /\w*$/ #extracts 'String' from '      0: forKey key: String' parameter string to identify the type of parameter
-
+    function_formal_parameter_type_name_regex_primary = /(?<=\w:\s)(@*\w*)(?=[.\s\n<])/ 
+    function_formal_parameter_type_name_regex_secondary = /(?<=\w\w:\s)(@*\w*)(?=[.\s\n<])/
+    # extracts prrrr1 from     0: formalParamOne: prrrr1\n
+      # 1: receiptID: String = UUID().uuidString
+      # 1: receiptID: String
+      # 0: _: Int
+      # 0: _ disposable1: Disposable
+          
+    return_type_regex = /(?<=`)(.*)(?=`)/ #extract type between backticks 
+          # return_type: `Observable<U.ResponseModel>`
+          # return_type: `Int`
+    parameter_type_regex = /%r{\d+:[\s\w\d]*:\s(?<parameter_type>.*)}/ 
+          # extracts 'String' from '      0: forKey key: String' parameter string to identify the type of parameter
+          # 0: dataRequestBuilder: DataRequestBuilder<T>
+          # 1: completion: @escaping (NetworkResult<T.ResponseModel, T.ErrorModel>) -> Void
+          # 0: with baseURL: URL
     #class, protocol, property, category, return type, method parameter type, enum, struct
     ast_tags_in_file(filename) do |file_line|
 
@@ -98,39 +111,32 @@ class ASTHierarchyCreator
           $stderr.puts "---------superclass: #{name}-------parent_types:---"
         end
 
-        #property in class and return type in function or extension method
-        if file_line.include? "identifier:" and tag_stack.currently_seeing_tag.include? "identifier_expr"
-          name_match = property_name_regex.match(file_line) #extract property name ending in *
-          if name_match != nil 
-            name = name_match[0]
-            current_node.add_dependency(name)
-            $stderr.puts "---------dependency: #{name}------identifier:-"
-          end
-        end
+        #property in class 
+        #    var_decl <range: /Users/mistrys/Documents/Development/ANZ-Next/mobile-ios-github/Frameworks/ANZAPIClients/ANZBankAnywhereAPI/ANZBankAnywhereClient/Classes/Swaggers/Models/EnrolmentResult.swift:16:5-16:42>
+        #      pattern: statusDescription: Optional<String>
+        #      pattern: accountNames: Optional<Array<AccountNames>>
 
-        func_decl_parameter_return_type_extract(current_node, file_line, tag_stack, parameter_list_found_regex, parameter_type_regex, return_type_regex)
+# iboutlet
+    # var_decl <range: /Users/mistrys/Documents/Development/ANZ-Next/mobile-ios-github/Frameworks/ANZInvestmentsJournal/Sources/BaseButtonBarPagerTabStripViewController.swift:39:5-39:60>
+    #   attributes: `@IBOutlet`
+    #   modifiers: public weak
+    #   pattern: buttonBarView: ImplicitlyUnwrappedOptional<ButtonBarView>
+    
+        func_decl_parameter_return_type_extract(current_node, file_line, tag_stack, parameter_type_regex, return_type_regex)
 
-        #class for which this is extension declarqtion
         if file_line.include? "type:" and tag_stack.currently_seeing_tag.include? "ext_decl"
           name_match = extension_subclass_name_regex.match(file_line) #extract class name for which this is an extension
           name = name_match[0]
 
           found_node = find_node(name, dependency)
           if found_node != nil
+        #class for which this is extension declarqtion
             $stderr.puts "---------current_node : #{current_node}------"
             current_node = found_node #make the found node as current node so that when the next identifier: sentence is found, then the name is added to dependent_node
             $stderr.puts "---------found current_node : #{current_node}------"
           else
             $stderr.puts "---------THIS SHOULD NOT HAPPEN------" #check when this happens whether we need to tackle this
           end
-        end
-
-        #formal parameters in function
-        if file_line.scan(/:/).count == 2 and tag_stack.currently_seeing_tag.include? "func_decl" # if the line contains 2 colons then it's a parameter decl
-          name_match = function_formal_parameter_type_name_regex.match(file_line) 
-          name = name_match[0]
-          $stderr.puts "-----current_node: #{current_node}----formal parameters: #{name}----func_decl----0:<formal parameter name>:<formal parameter type>---"
-          current_node.add_dependency(name)
         end
       end
     end
@@ -139,28 +145,26 @@ class ASTHierarchyCreator
 
   end
 
-  def func_decl_parameter_return_type_extract(current_node, file_line, tag_stack, parameter_list_found_regex, parameter_type_regex, return_type_regex)
+  def func_decl_parameter_return_type_extract(current_node, file_line, tag_stack, parameter_type_regex, return_type_regex)
     #parameters in function
-    if file_line.include? "parameters:" and tag_stack.currently_seeing_tag.include? "func_decl"
-      create_new_tag_node(file_line, tag_stack)
-    end        
-    if parameter_list_found_regex.match(file_line) != nil and tag_stack.currently_seeing_tag.include? "parameters"
+    if tag_stack.currently_seeing_tag.include? "func_decl"
       name_match = parameter_type_regex.match(file_line) 
       if name_match != nil 
-        name = name_match[0]
+        name = name_match[:parameter_type]
         current_node.add_dependency(name)
         $stderr.puts "---------dependency: #{name}------parameters:-------func_decl"
       end
-    end
 
-    #return_type in function
-    if file_line.include? "return_type:" and tag_stack.currently_seeing_tag.include? "func_decl"
-      name_match = return_type_regex.match(file_line) 
-      if name_match != nil 
-        name = name_match[0]
-        current_node.add_dependency(name)
-        $stderr.puts "---------dependency: #{name}------return_type:-------func_decl"
+      #return_type in function
+      if file_line.include? "return_type:" 
+        name_match = return_type_regex.match(file_line) 
+        if name_match != nil 
+          name = name_match[0]
+          current_node.add_dependency(name)
+          $stderr.puts "---------dependency: #{name}------return_type:-------func_decl"
+        end
       end
+      
     end
   end
 
@@ -184,9 +188,8 @@ class SwiftTagHierarchyNode
 
   def initialize tag_line
     @level_spaces_length = extract_tag_level (tag_line)
-    @tag_name = /(\w*)(?=[\s:])/.match(tag_line)[0] 
+    @tag_name = /(\w*)(?=\s<)/.match(tag_line)[0] 
     # extracts "import_decl" from sentence like import_decl <range:
-    # extracts       'parameters' from func param line
     $stderr.puts("-------tag_name: #{tag_name}----------")
 
   end
