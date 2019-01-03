@@ -51,6 +51,9 @@ class ASTHierarchyCreator
     property_name_regex = /(?<=identifier:\s`)(\w*)/ #property name from identifier: string
     extension_subclass_name_regex = subclass_name_regex
     function_formal_parameter_type_name_regex = /(?<=:\s)(\w*)(?=\n)/ # exgracts prrrr1 from     0: formalParamOne: prrrr1\n
+    return_type_regex = /(?<=`)(\w*)(?=`)/ #extract tye between `Int`
+    parameter_list_found_regex = /^\s*[0-9]*:/ #extracts '      0:' from '      0: forKey key: String' parameter string to identify that its a parameter
+    parameter_type_regex = /\w*$/ #extracts 'String' from '      0: forKey key: String' parameter string to identify the type of parameter
 
     #class, protocol, property, category, return type, method parameter type, enum, struct
     ast_tags_in_file(filename) do |file_line|
@@ -59,9 +62,7 @@ class ASTHierarchyCreator
 
       if is_swift_tag.match(file_line) != nil
         $stderr.puts("--------is_swift_tag-------------")
-        tag_node = SwiftTagHierarchyNode.new (file_line)
-        num_nodes_popped = update_tag_hierarchy(tag_node, tag_stack)
-        $stderr.puts "-----num_nodes_popped: #{num_nodes_popped}------\n\n"
+        create_new_tag_node(file_line, tag_stack)
       end
 
       if file_line.include? "class_decl" 
@@ -107,6 +108,8 @@ class ASTHierarchyCreator
           end
         end
 
+        func_decl_parameter_return_type_extract(current_node, file_line, tag_stack, parameter_list_found_regex, parameter_type_regex, return_type_regex)
+
         #class for which this is extension declarqtion
         if file_line.include? "type:" and tag_stack.currently_seeing_tag.include? "ext_decl"
           name_match = extension_subclass_name_regex.match(file_line) #extract class name for which this is an extension
@@ -136,12 +139,44 @@ class ASTHierarchyCreator
 
   end
 
+  def func_decl_parameter_return_type_extract(current_node, file_line, tag_stack, parameter_list_found_regex, parameter_type_regex, return_type_regex)
+    #parameters in function
+    if file_line.include? "parameters:" and tag_stack.currently_seeing_tag.include? "func_decl"
+      create_new_tag_node(file_line, tag_stack)
+    end        
+    if parameter_list_found_regex.match(file_line) != nil and tag_stack.currently_seeing_tag.include? "parameters"
+      name_match = parameter_type_regex.match(file_line) 
+      if name_match != nil 
+        name = name_match[0]
+        current_node.add_dependency(name)
+        $stderr.puts "---------dependency: #{name}------parameters:-------func_decl"
+      end
+    end
+
+    #return_type in function
+    if file_line.include? "return_type:" and tag_stack.currently_seeing_tag.include? "func_decl"
+      name_match = return_type_regex.match(file_line) 
+      if name_match != nil 
+        name = name_match[0]
+        current_node.add_dependency(name)
+        $stderr.puts "---------dependency: #{name}------return_type:-------func_decl"
+      end
+    end
+  end
+
+  def create_new_tag_node(file_line, tag_stack)
+    tag_node = SwiftTagHierarchyNode.new (file_line)
+    num_nodes_popped = update_tag_hierarchy(tag_node, tag_stack)
+    $stderr.puts "-----num_nodes_popped: #{num_nodes_popped}------\n\n"
+  end
+
   def ast_tags_in_file(filename)        
     $stderr.puts("--------ast_tags_in_file: #{filename}-------------")
     IO.popen("/Users/mistrys/Documents/Development/swift-ast-fork/.build/release/swift-ast -dump-ast #{filename}") { |fd|
       fd.each { |line| yield line }
     }
   end
+
 end
 
 class SwiftTagHierarchyNode
@@ -149,7 +184,9 @@ class SwiftTagHierarchyNode
 
   def initialize tag_line
     @level_spaces_length = extract_tag_level (tag_line)
-    @tag_name = /(\w*)(?=\s<)/.match(tag_line)[0] # extracts "import_decl" from sentence like import_decl <range:
+    @tag_name = /(\w*)(?=[\s:])/.match(tag_line)[0] 
+    # extracts "import_decl" from sentence like import_decl <range:
+    # extracts       'parameters' from func param line
     $stderr.puts("-------tag_name: #{tag_name}----------")
 
   end
