@@ -119,8 +119,10 @@ class DwarfdumpHierarchyCreator
             if name_match != nil # ignore  "SEL"
               name = name_match[0]
               if name.include?("(") #this is a method in a category
+                $stderr.puts "---------category name: #{name}-----TAG_subprogram---AT_name-"
                 name_match = at_name_subprogram_name_category_regex.match(name) #extract class name from category name
                 name = name_match[0]
+                $stderr.puts "---------category for class name: #{name}-----TAG_subprogram---AT_name-"
               end
               #find the node with the name and make it current
               found_node = find_node(name, dependency)
