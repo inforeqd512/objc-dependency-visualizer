@@ -49,16 +49,8 @@ class ASTHierarchyCreator
 
     is_swift_tag = /<range:/ #if the 'range' word appears then its a swift tag line
     subclass_name_regex = /(?<=:\s)(.*)/ #in sentence with name:, get the subclass name from the : to end of sentence
-    superclass_name_regex = subclass_name_regex
     property_name_regex = /(?<=identifier:\s`)(\w*)/ #property name from identifier: string
     extension_subclass_name_regex = subclass_name_regex
-    function_formal_parameter_type_name_regex_primary = /(?<=\w:\s)(@*\w*)(?=[.\s\n<])/ 
-    function_formal_parameter_type_name_regex_secondary = /(?<=\w\w:\s)(@*\w*)(?=[.\s\n<])/
-    # extracts prrrr1 from     0: formalParamOne: prrrr1\n
-      # 1: receiptID: String = UUID().uuidString
-      # 1: receiptID: String
-      # 0: _: Int
-      # 0: _ disposable1: Disposable
           
     return_type_regex = /(?<=`)(.*)(?=`)/ #extract type between backticks 
           # return_type: `Observable<U.ResponseModel>`
@@ -86,6 +78,8 @@ class ASTHierarchyCreator
       end
 
       if current_node != nil # swift file may have more than one top level nodes?
+
+        #subclass name
         if file_line.include? "name:" and tag_stack.currently_seeing_tag.include? "class_decl"
           name_match = subclass_name_regex.match(file_line) #extract subclass name 
           name = name_match[0]
@@ -102,13 +96,10 @@ class ASTHierarchyCreator
           end
         end
 
+        #superclass or protocol name
         if file_line.include? "parent_types:" and tag_stack.currently_seeing_tag.include? "class_decl"
-          name_match = superclass_name_regex.match(file_line) #extract super class name and protocol name
-          name = name_match[0]
-          name.split(/\W\s/).each { |word|        
-            current_node.add_polymorphism(word)
-          }
-          $stderr.puts "---------superclass: #{name}-------parent_types:---"
+          $stderr.puts "---------superclass from-------parent_types:---"
+          current_node.add_polymorphism(file_line)
         end
 
         #property in class 
@@ -116,14 +107,19 @@ class ASTHierarchyCreator
         #      pattern: statusDescription: Optional<String>
         #      pattern: accountNames: Optional<Array<AccountNames>>
 
+        #probably should consider only public interfaces as can we get important information from private ones?
+
 # iboutlet
     # var_decl <range: /Users/mistrys/Documents/Development/ANZ-Next/mobile-ios-github/Frameworks/ANZInvestmentsJournal/Sources/BaseButtonBarPagerTabStripViewController.swift:39:5-39:60>
     #   attributes: `@IBOutlet`
     #   modifiers: public weak
     #   pattern: buttonBarView: ImplicitlyUnwrappedOptional<ButtonBarView>
 
+#shared singletons will not be dependenchy injected as these following and above are
+        #func - formal parameter, return_types
         func_decl_parameter_return_type_extract(current_node, file_line, tag_stack, parameter_type_regex, return_type_regex)
 
+        #extension parameters
         if file_line.include? "type:" and tag_stack.currently_seeing_tag.include? "ext_decl"
           name_match = extension_subclass_name_regex.match(file_line) #extract class name for which this is an extension
           name = name_match[0]
@@ -147,12 +143,12 @@ class ASTHierarchyCreator
 
   def func_decl_parameter_return_type_extract(current_node, file_line, tag_stack, parameter_type_regex, return_type_regex)
     #parameters in function
+    $stderr.puts "---------func_decl_parameter_return_type_extract-------"
     if tag_stack.currently_seeing_tag.include? "func_decl"
       name_match = parameter_type_regex.match(file_line) 
-      if name_match != nil 
+      if name_match != nil #if its a parameter
         name = name_match[:parameter_type]
-        current_node.add_dependency(name)
-        $stderr.puts "---------dependency: #{name}------parameters:-------func_decl"
+        current_node.add_dependency(name, true)
       end
 
       #return_type in function
@@ -160,47 +156,12 @@ class ASTHierarchyCreator
         name_match = return_type_regex.match(file_line) 
         if name_match != nil 
           name = name_match[0]
-          case name
-            #replace all symbols with , and split it and create dependency
-          when /(?<=Optional<)(.*)(?=>)/, #eg Optional<Array<Abc>>
-               /(?<=Array<)(.*)(?=>)/ #eg. Array<Abc>
-            last_element_with_brackets = name.split("<").last
-            element_type = last_element_with_brackets.split(">").first
-            $stderr.puts "---------dependency: #{element_type}------#{name}-------return_type"
-            current_node.add_dependency(element_type)
-
-          when /%r{(?<=protocol<)(?<type_list>.*)(?=>)}/
-            # (() -> protocol<UIViewController, ModalPresentable>)
-            # protocol<UIViewController, VesselContentControlling>
-            element_list = type_list.split(",")
-            element_list.each { |element_type|
-              current_node.add_dependency(element_type)
-              $stderr.puts "---------dependency: #{element_type}------#{name}---protocol----return_type"
-            }
-
-          when /%r{(?<=\()(?<type_list>.*)(?=\))}/
-            # (UIViewController, Bool)
-            element_list = type_list.split(",")
-            element_list.each { |element_type|
-              current_node.add_dependency(element_type)
-              $stderr.puts "---------dependency: #{element_type}------#{name}-------return_type"
-            }
-
-          when /%r{(?<=RequestBuilder<)(?<element_type>.*)(?=>)}/
-            current_node.add_dependency(element_type)
-            current_node.add_dependency("RequestBuilder")
-            $stderr.puts "---------dependency: #{element_type}------#{name}----RequestBuilder---return_type"
-
-          else
-            current_node.add_dependency(name)
-            $stderr.puts "---------dependency: #{name}------return_type:-------func_decl"
-
-          end
+          current_node.add_dependency(name, true)
         end
       end
-      
     end
   end
+
 
   def create_new_tag_node(file_line, tag_stack)
     tag_node = SwiftTagHierarchyNode.new (file_line)
@@ -235,8 +196,6 @@ class SwiftTagHierarchyNode
     level_spaces = level_spaces_match[0]
     level_spaces_length = level_spaces.length
     $stderr.puts("--------level_spaces_length: #{level_spaces_length}-------")
-
     return level_spaces_length
   end
-
 end

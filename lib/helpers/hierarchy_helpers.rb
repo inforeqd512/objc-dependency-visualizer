@@ -40,12 +40,33 @@ class DependencyHierarchyNode
     @dependency = Set.new #unique entries for dependent classes
   end
 
-  def add_polymorphism (superclass_or_protocol_name)
-    @superclass_or_protocol.add superclass_or_protocol_name    
+  def add_polymorphism (superclass_or_protocol_name_line)
+    add_tokenized_dependency(superclass_or_protocol_name_line) { |token|
+      @superclass_or_protocol.add(token)
+    }      
   end
 
-  def add_dependency (dependent_node)
-    @dependency.add dependent_node    
+  def add_dependency (dependent_types_string, is_token_string = false)
+    if is_token_string
+      add_tokenized_dependency(dependent_types_string) { |token|
+        @dependency.add(token)
+      }
+    else
+      @dependency.add(dependent_types_string)
+    end
+  end
+
+  def add_tokenized_dependency (dependent_types_string)
+    token_string = dependent_types_string.gsub(/[\(\)\-<>`\s@:]/, ",")
+    $stderr.puts("--------add_tokenized_dependency gsub: #{token_string}-------------")
+    token_list = token_string.split(",") #blindly convert the pattern characters like () <> etc to commas and split this string into tokens with ',' delimiter
+    token_list.each { |token| 
+      if token.length > 1 #ignore any empty or Generic <T> etc types of tokens and add those directly as dependencies. keep track of exclusions in the swift primitives list
+        if token =~ /^[A-Z]/ #if string starts with Capital letter then it's a Type eg String etc
+          yield token
+        end    
+      end
+    }
   end
 end
 
