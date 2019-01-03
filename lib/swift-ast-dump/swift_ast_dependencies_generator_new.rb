@@ -121,7 +121,7 @@ class ASTHierarchyCreator
     #   attributes: `@IBOutlet`
     #   modifiers: public weak
     #   pattern: buttonBarView: ImplicitlyUnwrappedOptional<ButtonBarView>
-    
+
         func_decl_parameter_return_type_extract(current_node, file_line, tag_stack, parameter_type_regex, return_type_regex)
 
         if file_line.include? "type:" and tag_stack.currently_seeing_tag.include? "ext_decl"
@@ -160,8 +160,42 @@ class ASTHierarchyCreator
         name_match = return_type_regex.match(file_line) 
         if name_match != nil 
           name = name_match[0]
-          current_node.add_dependency(name)
-          $stderr.puts "---------dependency: #{name}------return_type:-------func_decl"
+          case name
+            #replace all symbols with , and split it and create dependency
+          when /(?<=Optional<)(.*)(?=>)/, #eg Optional<Array<Abc>>
+               /(?<=Array<)(.*)(?=>)/ #eg. Array<Abc>
+            last_element_with_brackets = name.split("<").last
+            element_type = last_element_with_brackets.split(">").first
+            $stderr.puts "---------dependency: #{element_type}------#{name}-------return_type"
+            current_node.add_dependency(element_type)
+
+          when /%r{(?<=protocol<)(?<type_list>.*)(?=>)}/
+            # (() -> protocol<UIViewController, ModalPresentable>)
+            # protocol<UIViewController, VesselContentControlling>
+            element_list = type_list.split(",")
+            element_list.each { |element_type|
+              current_node.add_dependency(element_type)
+              $stderr.puts "---------dependency: #{element_type}------#{name}---protocol----return_type"
+            }
+
+          when /%r{(?<=\()(?<type_list>.*)(?=\))}/
+            # (UIViewController, Bool)
+            element_list = type_list.split(",")
+            element_list.each { |element_type|
+              current_node.add_dependency(element_type)
+              $stderr.puts "---------dependency: #{element_type}------#{name}-------return_type"
+            }
+
+          when /%r{(?<=RequestBuilder<)(?<element_type>.*)(?=>)}/
+            current_node.add_dependency(element_type)
+            current_node.add_dependency("RequestBuilder")
+            $stderr.puts "---------dependency: #{element_type}------#{name}----RequestBuilder---return_type"
+
+          else
+            current_node.add_dependency(name)
+            $stderr.puts "---------dependency: #{name}------return_type:-------func_decl"
+
+          end
         end
       end
       
