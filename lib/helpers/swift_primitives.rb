@@ -83,6 +83,7 @@ class SwiftPrimitives
       'Float32',
       'Float64',
       'FloatLiteralType',
+      'Int',
       'IntMax',
       'IntegerLiteralType',
       'StringLiteralType',
@@ -204,6 +205,7 @@ class SwiftPrimitives
       'UnsafeMutableBufferPointer',
       'UnsafeMutablePointer',
       'UnsafePointer',
+      'UserDefaults',
       'Zip2Generator',
       'Zip2Sequence',
 #Operators      
