@@ -66,6 +66,7 @@ class SwiftPrimitives
       'CDouble',
       'CFloat',
       'CInt',
+      'class',
       'CLong',
       'CLongLong',
       'Codable',
@@ -105,6 +106,7 @@ class SwiftPrimitives
       'Array.Index',
       'AutoreleasingUnsafeMutablePointer',
       'Bool',
+      'CodingKey',
       'COpaquePointer',
       'CVaListPointer',
       'Character',
@@ -257,7 +259,9 @@ class SwiftPrimitives
       'URLRequest',
       'URLCache',
 #Project
+      'ImplicitlyUnwrappedOptional',
       'NibProviding',
+      'OSLog',
     ]).freeze
 
   def self.primitive_types
