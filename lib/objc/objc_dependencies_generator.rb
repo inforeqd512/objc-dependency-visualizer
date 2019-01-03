@@ -12,18 +12,17 @@ class ObjcDependenciesGenerator
 
     object_files_in_dir(object_files_dir) do |filename|
 
-      # Full output example https://gist.github.com/PaulTaykalo/62cd5d545301c8355cb5
-      # With grep output example https://gist.github.com/PaulTaykalo/9d5ecbce8a30a412cdbe
-      $stderr.puts "-----object_files_dir: #{object_files_dir}----filename: #{filename}"
-      object_file_dependency_hierarchy = dwarfdumpHierarchyCreator.create_hierarchy(filename, @dependency)
-      @dependency = object_file_dependency_hierarchy
+      if filename.include?("Tests") == false #exclude file paths to Tests in frameworks or subfolders
+        $stderr.puts "-----object_files_dir: #{object_files_dir}----filename: #{filename}"
+        object_file_dependency_hierarchy = dwarfdumpHierarchyCreator.create_hierarchy(filename, @dependency)
+        @dependency = object_file_dependency_hierarchy
 
-      print_hierarchy(@dependency)
-      #yield source and destination to create a tree
-      pair_source_dest(@dependency) do  |source, source_type, dest, dest_type, link_type|
-        yield source, source_type, dest, dest_type, link_type
+        print_hierarchy(@dependency)
+        #yield source and destination to create a tree
+        pair_source_dest(@dependency) do  |source, source_type, dest, dest_type, link_type|
+          yield source, source_type, dest, dest_type, link_type
+        end
       end
-
     end
 
   end

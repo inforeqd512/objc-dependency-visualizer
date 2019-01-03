@@ -22,25 +22,18 @@ class SwiftAstDependenciesGeneratorNew
     folder_paths = swift_files_path_list(@swift_files_path, @swift_ignore_folders)
     swift_files_list = swift_files_list(folder_paths)
 
-    swift_files_list.each { |swift_filename| 
-      swift_file_dependency_hierarchy = astHierarchyCreator.create_hierarchy(swift_filename, @dependency)
-      @dependency = swift_file_dependency_hierarchy
+    swift_files_list.each { |filename| 
+      if filename.include?("Tests") == false #exclude file paths to Tests in frameworks or subfolders
+        swift_file_dependency_hierarchy = astHierarchyCreator.create_hierarchy(filename, @dependency)
+        @dependency = swift_file_dependency_hierarchy
 
-      print_hierarchy(@dependency)
-      #yield source and destination to create a tree
-      pair_source_dest(@dependency) do  |source, source_type, dest, dest_type, link_type|
-        yield source, source_type, dest, dest_type, link_type
+        print_hierarchy(@dependency)
+        #yield source and destination to create a tree
+        pair_source_dest(@dependency) do  |source, source_type, dest, dest_type, link_type|
+          yield source, source_type, dest, dest_type, link_type
+        end
       end
-
-      # ast_tree = SwiftAST::Parser.new().parse_build_log_output(result)
-      # $stderr.puts("---------ast_tree--------")
-      # $stderr.puts(ast_tree)
     }
-    # ast_tree = SwiftAST::Parser.new().parse_build_log_output(File.read("./output.ast"))
-    # @ast_tree.dump if @dump_parsed_tree
-    # scan_source_files
-
-    # @tree
   end
 end
 
