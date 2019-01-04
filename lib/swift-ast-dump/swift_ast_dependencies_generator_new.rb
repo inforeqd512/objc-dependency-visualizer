@@ -27,13 +27,14 @@ class SwiftAstDependenciesGeneratorNew
         swift_file_dependency_hierarchy = astHierarchyCreator.create_hierarchy(filename, @dependency)
         @dependency = swift_file_dependency_hierarchy
 
-        print_hierarchy(@dependency)
         #yield source and destination to create a tree
         pair_source_dest(@dependency) do  |source, source_type, dest, dest_type, link_type|
           yield source, source_type, dest, dest_type, link_type
         end
       end
     }
+
+    print_hierarchy(@dependency)
   end
 end
 
@@ -41,7 +42,7 @@ class ASTHierarchyCreator
 
   def create_hierarchy filename, dependency
 
-    $stderr.puts("-------filename: #{filename}-----")
+    $stderr.puts("------ASTHierarchyCreator-filename: #{filename}-----")
 
     tag_stack = Stack.new
     dependency = dependency.dup
@@ -49,124 +50,118 @@ class ASTHierarchyCreator
 
     is_swift_tag = /<range:/ #if the 'range' word appears then its a swift tag line
     subclass_name_regex = /(?<=:\s)(.*)/ #in sentence with name:, get the subclass name from the : to end of sentence
-    property_name_regex = /(?<=identifier:\s`)(\w*)/ #property name from identifier: string
-    extension_subclass_name_regex = subclass_name_regex
+
           
-    return_type_regex = /(?<=`)(.*)(?=`)/ #extract type between backticks 
-          # return_type: `Observable<U.ResponseModel>`
-          # return_type: `Int`
-    parameter_type_regex = /%r{\d+:[\s\w\d]*:\s(?<parameter_type>.*)}/ 
-          # extracts 'String' from '      0: forKey key: String' parameter string to identify the type of parameter
-          # 0: dataRequestBuilder: DataRequestBuilder<T>
-          # 1: completion: @escaping (NetworkResult<T.ResponseModel, T.ErrorModel>) -> Void
-          # 0: with baseURL: URL
     #class, protocol, property, category, return type, method parameter type, enum, struct
     ast_tags_in_file(filename) do |file_line|
 
       $stderr.puts file_line
 
-      if is_swift_tag.match(file_line) != nil
+#basic logic - when you see top level tags usually _decl, then till the next top level is seen, every word that begins with Capital letter is a dependency
+#modifiers - ignore import_decl
+#modifiers - only map for when marked as 'public' as others are internal and of no concern (this may take some work)
+        #probably should consider only public interfaces as can we get important information from private ones?
+#shared singletons will not be dependenchy injected as these following and above are
+
+      tag_node_created = false
+      if is_swift_tag.match(file_line) != nil #when <range: is present (means its a tag)
         $stderr.puts("--------is_swift_tag-------------")
-        create_new_tag_node(file_line, tag_stack)
+        tag_node = SwiftTagHierarchyNode.new (file_line)
+        node_below_top_level = tag_stack.node_just_below_top_level
+        if node_below_top_level == nil #if there is no node below top hierarchy then create tag node
+          num_nodes_popped = update_tag_hierarchy(tag_node, tag_stack)
+          tag_node_created = true      
+          $stderr.puts "-----tag_node_created------\n\n" #with the above basic logic, there should be no nodes popped          
+        else
+          if tag_node.level_spaces_length == node_below_top_level.level_spaces_length #if the new tag node is at same level as the second node from top level then create tag node
+            num_nodes_popped = update_tag_hierarchy(tag_node, tag_stack)
+            $stderr.puts "-----tag_node_created------\n\n" #with the above basic logic, there should be no nodes popped
+            tag_node_created = true      
+          end  
+        end
       end
 
-      if file_line.include? "class_decl" 
-        #if the structure does not already exist in the dependencies array else get that object
-        current_node = DependencyHierarchyNode.new
-        $stderr.puts "----new node created: #{current_node}----class_decl--"
-        dependency.push(current_node)
+      if tag_node_created == true #create a dependency node for each top level tag node created
+        if file_line.include?("_decl") and #this check required only so that we ensure we HAVE a node created with _decl for the subclass name check below
+           file_line.include?("import_decl") == false and  
+           file_line.include?("top_level_decl") == false   
+          current_node = DependencyHierarchyNode.new
+          $stderr.puts "----new node created: #{current_node}------"
+          dependency.push(current_node)
+        end       
       end
 
       if current_node != nil # swift file may have more than one top level nodes?
 
-        #subclass name
-        if file_line.include? "name:" and tag_stack.currently_seeing_tag.include? "class_decl"
-          name_match = subclass_name_regex.match(file_line) #extract subclass name 
-          name = name_match[0]
-          #find the node with the name and make it current
-          found_node = find_node(name, dependency)
-          if found_node != nil
-            dependency.pop #remove the node created at TAG_structure_type
-            $stderr.puts "--------class_decl-current_node : #{current_node}------"
-            current_node = found_node
-            $stderr.puts "--------class_decl-found current_node : #{current_node.subclass}----#{current_node.dependency.count}--"
-          else
-            $stderr.puts "-----current_node: #{current_node}----subclass: #{name}----class_decl----name:---"
-            current_node.subclass = name
+        # if (file_line.include? "access_level:" and tag_stack.currently_seeing_tag.include? "_decl") or
+        #    (file_line.include? "modifiers:" and tag_stack.currently_seeing_tag.include? "_decl")
+
+        # end
+
+        #subclass, protocol, extension name - this works as the subclass will be updated only if it was nil before.. This is a little buggy as when the tags are not present in the file, the subclass will get its name from another sentence that has type: in it
+        if (file_line.include? "name:" and tag_stack.currently_seeing_tag.include? "_decl") or
+           (file_line.include? "type:" and tag_stack.currently_seeing_tag.include? "ext_decl")
+          if current_node.subclass.length == 0
+            name_match = subclass_name_regex.match(file_line) #extract subclass name 
+            name = name_match[0]
+
+            #find the node with the name and make it current, so that we avoid duplicates
+            existing_subclass_or_extension_node = find_node(name, dependency)
+            if existing_subclass_or_extension_node == nil
+              current_node.subclass = name
+              $stderr.puts "-----NO existing_subclass_or_extension_node : #{current_node}--AAAAA--subclass: #{current_node.subclass}----"
+            else
+              dependency.pop #remove the node created at TAG_structure_type
+              current_node = existing_subclass_or_extension_node
+              $stderr.puts "--------existing_subclass_or_extension_node : #{current_node.subclass}----dependency: #{current_node.dependency.count}--"
+            end
           end
-        end
+        else
 
         #superclass or protocol name
-        if file_line.include? "parent_types:" and tag_stack.currently_seeing_tag.include? "class_decl"
-          $stderr.puts "---------superclass from-------parent_types:---"
+        if file_line.include? "parent_types:" and tag_stack.currently_seeing_tag.include? "_decl" #check for -decl just to be safe
           current_node.add_polymorphism(file_line)
-        end
+        else
 
+        #for all other types of decl or lines, check for words beginning with capital and those are all dependencies 
         #property in class 
-        #    var_decl <range: /Users/mistrys/Documents/Development/ANZ-Next/mobile-ios-github/Frameworks/ANZAPIClients/ANZBankAnywhereAPI/ANZBankAnywhereClient/Classes/Swaggers/Models/EnrolmentResult.swift:16:5-16:42>
-        #      pattern: statusDescription: Optional<String>
-        #      pattern: accountNames: Optional<Array<AccountNames>>
-
-        #probably should consider only public interfaces as can we get important information from private ones?
-
-# iboutlet
-    # var_decl <range: /Users/mistrys/Documents/Development/ANZ-Next/mobile-ios-github/Frameworks/ANZInvestmentsJournal/Sources/BaseButtonBarPagerTabStripViewController.swift:39:5-39:60>
-    #   attributes: `@IBOutlet`
-    #   modifiers: public weak
-    #   pattern: buttonBarView: ImplicitlyUnwrappedOptional<ButtonBarView>
-
-#shared singletons will not be dependenchy injected as these following and above are
-        #func - formal parameter, return_types
-        func_decl_parameter_return_type_extract(current_node, file_line, tag_stack, parameter_type_regex, return_type_regex)
-
-        #extension parameters
-        if file_line.include? "type:" and tag_stack.currently_seeing_tag.include? "ext_decl"
-          name_match = extension_subclass_name_regex.match(file_line) #extract class name for which this is an extension
-          name = name_match[0]
-
-          found_node = find_node(name, dependency)
-          if found_node != nil
-        #class for which this is extension declarqtion
-            $stderr.puts "---------current_node : #{current_node}------"
-            current_node = found_node #make the found node as current node so that when the next identifier: sentence is found, then the name is added to dependent_node
-            $stderr.puts "---------found current_node : #{current_node}------"
+        # var_decl <range: /Users/mistrys/Documents/Development/ANZ-Next/mobile-ios-github/Frameworks/ANZAPIClients/ANZBankAnywhereAPI/ANZBankAnywhereClient/Classes/Swaggers/Models/EnrolmentResult.swift:16:5-16:42>
+        #   pattern: statusDescription: Optional<String>
+        #   pattern: accountNames: Optional<Array<AccountNames>>
+        # iboutlet
+        # var_decl <range: /Users/mistrys/Documents/Development/ANZ-Next/mobile-ios-github/Frameworks/ANZInvestmentsJournal/Sources/BaseButtonBarPagerTabStripViewController.swift:39:5-39:60>
+        #   attributes: `@IBOutlet`
+        #   modifiers: public weak
+        #   pattern: buttonBarView: ImplicitlyUnwrappedOptional<ButtonBarView>
+        # var_decl <range: /Users/mistrys/Documents/Development/ANZ-Next/mobile-ios-github/Frameworks/ANZInvestmentsJournal/Sources/BaseButtonBarPagerTabStripViewController.swift:35:5-35:73>
+        #   modifiers: public
+        #   pattern: buttonBarItemSpec: ImplicitlyUnwrappedOptional<ButtonBarItemSpec<ButtonBarCellType>>
+        # const_decl <range: /Users/mistrys/Documents/Development/ANZ-Next/mobile-ios-github/Frameworks/ANZApplicationSupport/Sources/RateAndReviewRouter.swift:31:5-31:50>
+        #   modifiers: private
+        #   pattern: scheduler: RateAndReviewScheduler
+        # func_decl <range: /Users/mistrys/Documents/Development/ANZ-Next/mobile-ios-github/Frameworks/ANZInvestmentsJournal/Sources/BaseButtonBarPagerTabStripViewController.swift:212:5-217:6>
+        #   name: collectionView
+        #   modifiers: open
+        #   parameters:
+        #   0: _ collectionView: UICollectionView
+        #   1: layout collectionViewLayout: UICollectionViewLayout
+        #   2: sizeForItemAtIndexPath indexPath: IndexPath
+        #   return_type: `CGSize`
+        if is_swift_tag.match(file_line) == nil #when <range: is NOT present (means its NOT a tag)
+          if file_line.match(/raw_text:|literal:|method_name:|identifier: `[a-z]|name: `[a-z]/) != nil
+            #ignore
           else
-            $stderr.puts "---------THIS SHOULD NOT HAPPEN------" #check when this happens whether we need to tackle this
+            current_node.add_dependency(file_line, true)
           end
         end
+        end
+        end
+
       end
     end
 
     return dependency
 
-  end
-
-  def func_decl_parameter_return_type_extract(current_node, file_line, tag_stack, parameter_type_regex, return_type_regex)
-    #parameters in function
-    $stderr.puts "---------func_decl_parameter_return_type_extract-------"
-    if tag_stack.currently_seeing_tag.include? "func_decl"
-      name_match = parameter_type_regex.match(file_line) 
-      if name_match != nil #if its a parameter
-        name = name_match[:parameter_type]
-        current_node.add_dependency(name, true)
-      end
-
-      #return_type in function
-      if file_line.include? "return_type:" 
-        name_match = return_type_regex.match(file_line) 
-        if name_match != nil 
-          name = name_match[0]
-          current_node.add_dependency(name, true)
-        end
-      end
-    end
-  end
-
-
-  def create_new_tag_node(file_line, tag_stack)
-    tag_node = SwiftTagHierarchyNode.new (file_line)
-    num_nodes_popped = update_tag_hierarchy(tag_node, tag_stack)
-    $stderr.puts "-----num_nodes_popped: #{num_nodes_popped}------\n\n"
   end
 
   def ast_tags_in_file(filename)        
@@ -185,8 +180,6 @@ class SwiftTagHierarchyNode
     @level_spaces_length = extract_tag_level (tag_line)
     @tag_name = /(\w*)(?=\s<)/.match(tag_line)[0] 
     # extracts "import_decl" from sentence like import_decl <range:
-    $stderr.puts("-------tag_name: #{tag_name}----------")
-
   end
 
   def extract_tag_level (tag_line)
@@ -195,7 +188,6 @@ class SwiftTagHierarchyNode
     level_spaces_match = level_space_regex.match(tag_line)
     level_spaces = level_spaces_match[0]
     level_spaces_length = level_spaces.length
-    $stderr.puts("--------level_spaces_length: #{level_spaces_length}-------")
     return level_spaces_length
   end
 end

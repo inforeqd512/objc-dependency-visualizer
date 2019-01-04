@@ -23,7 +23,20 @@ class Stack
   end
 
   def currently_seeing_tag
-    return peek_last.tag_name
+    last_element = peek_last
+    if last_element != nil
+      return last_element.tag_name
+    else
+      return nil
+    end
+  end
+
+  def node_just_below_top_level
+    if @data.length > 1 #if there are atleast 2 elements in the array
+      return @data[1]
+    else
+      return nil
+    end
   end
 
   def count
@@ -57,12 +70,12 @@ class DependencyHierarchyNode
   end
 
   def add_tokenized_dependency (dependent_types_string)
-    token_string = dependent_types_string.gsub(/[\(\)\-<>`\s@:]/, ",")
-    $stderr.puts("--------add_tokenized_dependency gsub: #{token_string}-------------")
+    token_string = dependent_types_string.gsub(/[\(\)\-<>`\s@:_"]/, ",")
     token_list = token_string.split(",") #blindly convert the pattern characters like () <> etc to commas and split this string into tokens with ',' delimiter
     token_list.each { |token| 
       if token.length > 1 #ignore any empty or Generic <T> etc types of tokens and add those directly as dependencies. keep track of exclusions in the swift primitives list
         if token =~ /^[A-Z]/ #if string starts with Capital letter then it's a Type eg String etc
+          $stderr.puts("--------add_tokenized_dependency token: #{token}-------------")
           yield token
         end    
       end
@@ -138,3 +151,14 @@ def pair_source_dest (dependency)
     end
   }
 end
+
+class Logger
+  def self.log_message (message)
+    $stderr.puts(message)
+  end
+end
+
+
+
+
+
