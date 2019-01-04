@@ -49,7 +49,7 @@ class ASTHierarchyCreator
 
     is_swift_tag = /<range:/ #if the 'range' word appears then its a swift tag line
     subclass_name_regex = /(?<=:\s)(.*)/ #in sentence with name:, get the subclass name from the : to end of sentence
-
+    maybe_singleton = ""
           
     #class, protocol, property, category, return type, method parameter type, enum, struct
     ast_tags_in_file(filename) do |file_line|
@@ -58,9 +58,11 @@ class ASTHierarchyCreator
 
 #basic logic - when you see top level tags usually _decl, then till the next top level is seen, every word that begins with Capital letter is a dependency
 #modifiers - ignore import_decl, top_level_decl - done till here
+#modifiers - identify singletons and set them up as dependencies
 #modifiers - only map for when marked as 'public' as others are internal and of no concern (this may take some work)
+
         #probably should consider only public interfaces as can we get important information from private ones?
-#shared singletons will not be dependenchy injected as these following and above are
+#modifier - when adding dependency, check its not same as subclass name 
 
       tag_node_created = false
       if is_swift_tag.match(file_line) != nil #when <range: is present (means its a tag)
@@ -92,6 +94,28 @@ class ASTHierarchyCreator
 
       if current_node != nil # swift file may have more than one top level nodes?
 
+        #identify singletons and set them up as dependencies
+        if /identifier:\s`[A-Z].*`/.match(file_line) != nil
+          match_text = /identifier:\s`(?<type_name>[A-Z].*)`/.match(file_line)
+          maybe_singleton = match_text[:type_name]
+
+        elsif (/identifier: `shared`/.match(file_line) != nil) and 
+              (maybe_singleton.length > 0)
+          match_text = /identifier: `(?<type_name>shared)`/.match(file_line)
+          singleton_method = match_text[:type_name]
+          definitely_singleton = maybe_singleton + "+" + singleton_method
+          current_node.add_dependency(definitely_singleton)
+          maybe_singleton = ""
+
+        elsif (/identifier: `main`/.match(file_line) != nil) and 
+              (maybe_singleton.length > 0)
+          match_text = /identifier: `(?<type_name>main)`/.match(file_line)
+          singleton_method = match_text[:type_name]
+          definitely_singleton = maybe_singleton + "+" + singleton_method
+          current_node.add_dependency(definitely_singleton)
+          maybe_singleton = ""
+        end
+
         # if (file_line.include? "access_level:" and tag_stack.currently_seeing_tag.include? "_decl") or
         #    (file_line.include? "modifiers:" and tag_stack.currently_seeing_tag.include? "_decl")
 
@@ -115,30 +139,27 @@ class ASTHierarchyCreator
               Logger.log_message "--------existing_subclass_or_extension_node : #{current_node.subclass}----dependency: #{current_node.dependency.count}--"
             end
           end
-        else
-
         #superclass or protocol name
-        if file_line.include? "parent_types:" and tag_stack.currently_seeing_tag.include? "_decl" #check for -decl just to be safe
+        elsif file_line.include? "parent_types:" and tag_stack.currently_seeing_tag.include? "_decl" #check for -decl just to be safe
           current_node.add_polymorphism(file_line)
-        else
 
         #for all other types of decl or lines, check for words beginning with capital and those are all dependencies 
         #property in class 
-        # var_decl <range: /Users/mistrys/Documents/Development/ANZ-Next/mobile-ios-github/Frameworks/ANZAPIClients/ANZBankAnywhereAPI/ANZBankAnywhereClient/Classes/Swaggers/Models/EnrolmentResult.swift:16:5-16:42>
+        # var_decl <range: 16:5-16:42>
         #   pattern: statusDescription: Optional<String>
         #   pattern: accountNames: Optional<Array<AccountNames>>
         # iboutlet
-        # var_decl <range: /Users/mistrys/Documents/Development/ANZ-Next/mobile-ios-github/Frameworks/ANZInvestmentsJournal/Sources/BaseButtonBarPagerTabStripViewController.swift:39:5-39:60>
+        # var_decl <range: 39:5-39:60>
         #   attributes: `@IBOutlet`
         #   modifiers: public weak
         #   pattern: buttonBarView: ImplicitlyUnwrappedOptional<ButtonBarView>
-        # var_decl <range: /Users/mistrys/Documents/Development/ANZ-Next/mobile-ios-github/Frameworks/ANZInvestmentsJournal/Sources/BaseButtonBarPagerTabStripViewController.swift:35:5-35:73>
+        # var_decl <range: 35:5-35:73>
         #   modifiers: public
         #   pattern: buttonBarItemSpec: ImplicitlyUnwrappedOptional<ButtonBarItemSpec<ButtonBarCellType>>
-        # const_decl <range: /Users/mistrys/Documents/Development/ANZ-Next/mobile-ios-github/Frameworks/ANZApplicationSupport/Sources/RateAndReviewRouter.swift:31:5-31:50>
+        # const_decl <range: 31:5-31:50>
         #   modifiers: private
         #   pattern: scheduler: RateAndReviewScheduler
-        # func_decl <range: /Users/mistrys/Documents/Development/ANZ-Next/mobile-ios-github/Frameworks/ANZInvestmentsJournal/Sources/BaseButtonBarPagerTabStripViewController.swift:212:5-217:6>
+        # func_decl <range: 5-217:6>
         #   name: collectionView
         #   modifiers: open
         #   parameters:
@@ -146,14 +167,12 @@ class ASTHierarchyCreator
         #   1: layout collectionViewLayout: UICollectionViewLayout
         #   2: sizeForItemAtIndexPath indexPath: IndexPath
         #   return_type: `CGSize`
-        if is_swift_tag.match(file_line) == nil #when <range: is NOT present (means its NOT a tag)
-          if file_line.match(/raw_text:|literal:|method_name:|identifier: `[a-z]|name: `[a-z]/) != nil
+        elsif is_swift_tag.match(file_line) == nil #when <range: is NOT present (means its NOT a tag)
+          if file_line.match(/raw_text:|literal:|method_name:|attributes:|identifier: `[a-z]|name: `[a-z]|identifier: `shared`|identifier: `main`/) != nil
             #ignore
           else
             current_node.add_dependency(file_line, true)
           end
-        end
-        end
         end
 
       end
