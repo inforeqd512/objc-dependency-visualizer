@@ -75,7 +75,7 @@ class DependencyHierarchyNode
     token_list.each { |token| 
       if token.length > 1 #ignore any empty or Generic <T> etc types of tokens and add those directly as dependencies. keep track of exclusions in the swift primitives list
         if token =~ /^[A-Z]/ #if string starts with Capital letter then it's a Type eg String etc
-          $stderr.puts("--------add_tokenized_dependency token: #{token}-------------")
+          Logger.log_message("--------add_tokenized_dependency token: #{token}-------------")
           yield token
         end    
       end
@@ -154,7 +154,7 @@ end
 
 class Logger
   def self.log_message (message)
-    $stderr.puts(message)
+    # $stderr.puts(message)
   end
 end
 

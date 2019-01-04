@@ -12,13 +12,12 @@ class SwiftAstDependenciesGeneratorNew
     @dump_parsed_tree = swift_ast_show_parsed_tree
   end
 
-  # @return [DependencyTree]
   def generate_dependencies
 
     @dependency = []
     astHierarchyCreator = ASTHierarchyCreator.new
 
-    $stderr.puts("--------generate_dependencies----------")
+    Logger.log_message("--------generate_dependencies----------")
     folder_paths = swift_files_path_list(@swift_files_path, @swift_ignore_folders)
     swift_files_list = swift_files_list(folder_paths)
 
@@ -26,13 +25,13 @@ class SwiftAstDependenciesGeneratorNew
       if filename.include?("Tests") == false #exclude file paths to Tests in frameworks or subfolders
         swift_file_dependency_hierarchy = astHierarchyCreator.create_hierarchy(filename, @dependency)
         @dependency = swift_file_dependency_hierarchy
-
-        #yield source and destination to create a tree
-        pair_source_dest(@dependency) do  |source, source_type, dest, dest_type, link_type|
-          yield source, source_type, dest, dest_type, link_type
-        end
       end
     }
+
+    #yield source and destination to create a tree
+    pair_source_dest(@dependency) do  |source, source_type, dest, dest_type, link_type|
+      yield source, source_type, dest, dest_type, link_type
+    end
 
     print_hierarchy(@dependency)
   end
@@ -42,10 +41,10 @@ class ASTHierarchyCreator
 
   def create_hierarchy filename, dependency
 
-    $stderr.puts("------ASTHierarchyCreator-filename: #{filename}-----")
+    Logger.log_message("------ASTHierarchyCreator-filename: #{filename}-----")
 
     tag_stack = Stack.new
-    dependency = dependency.dup
+    dependency = dependency
     current_node = nil
 
     is_swift_tag = /<range:/ #if the 'range' word appears then its a swift tag line
@@ -55,27 +54,27 @@ class ASTHierarchyCreator
     #class, protocol, property, category, return type, method parameter type, enum, struct
     ast_tags_in_file(filename) do |file_line|
 
-      $stderr.puts file_line
+      Logger.log_message file_line
 
 #basic logic - when you see top level tags usually _decl, then till the next top level is seen, every word that begins with Capital letter is a dependency
-#modifiers - ignore import_decl
+#modifiers - ignore import_decl, top_level_decl - done till here
 #modifiers - only map for when marked as 'public' as others are internal and of no concern (this may take some work)
         #probably should consider only public interfaces as can we get important information from private ones?
 #shared singletons will not be dependenchy injected as these following and above are
 
       tag_node_created = false
       if is_swift_tag.match(file_line) != nil #when <range: is present (means its a tag)
-        $stderr.puts("--------is_swift_tag-------------")
+        Logger.log_message("--------is_swift_tag-------------")
         tag_node = SwiftTagHierarchyNode.new (file_line)
         node_below_top_level = tag_stack.node_just_below_top_level
         if node_below_top_level == nil #if there is no node below top hierarchy then create tag node
           num_nodes_popped = update_tag_hierarchy(tag_node, tag_stack)
           tag_node_created = true      
-          $stderr.puts "-----tag_node_created------\n\n" #with the above basic logic, there should be no nodes popped          
+          Logger.log_message "-----tag_node_created------\n\n" #with the above basic logic, there should be no nodes popped          
         else
           if tag_node.level_spaces_length == node_below_top_level.level_spaces_length #if the new tag node is at same level as the second node from top level then create tag node
             num_nodes_popped = update_tag_hierarchy(tag_node, tag_stack)
-            $stderr.puts "-----tag_node_created------\n\n" #with the above basic logic, there should be no nodes popped
+            Logger.log_message "-----tag_node_created------\n\n" #with the above basic logic, there should be no nodes popped
             tag_node_created = true      
           end  
         end
@@ -86,7 +85,7 @@ class ASTHierarchyCreator
            file_line.include?("import_decl") == false and  
            file_line.include?("top_level_decl") == false   
           current_node = DependencyHierarchyNode.new
-          $stderr.puts "----new node created: #{current_node}------"
+          Logger.log_message "----new node created: #{current_node}------"
           dependency.push(current_node)
         end       
       end
@@ -109,11 +108,11 @@ class ASTHierarchyCreator
             existing_subclass_or_extension_node = find_node(name, dependency)
             if existing_subclass_or_extension_node == nil
               current_node.subclass = name
-              $stderr.puts "-----NO existing_subclass_or_extension_node : #{current_node}--AAAAA--subclass: #{current_node.subclass}----"
+              Logger.log_message "-----NO existing_subclass_or_extension_node : #{current_node}--AAAAA--subclass: #{current_node.subclass}----"
             else
               dependency.pop #remove the node created at TAG_structure_type
               current_node = existing_subclass_or_extension_node
-              $stderr.puts "--------existing_subclass_or_extension_node : #{current_node.subclass}----dependency: #{current_node.dependency.count}--"
+              Logger.log_message "--------existing_subclass_or_extension_node : #{current_node.subclass}----dependency: #{current_node.dependency.count}--"
             end
           end
         else
