@@ -187,6 +187,7 @@ class SwiftPrimitives
       'String.UnicodeScalarView',
       'String.UnicodeScalarView.Generator',
       'String.UnicodeScalarView.Index',
+      'Swift.Error',
       'TernaryPrecedence',
       'AssignmentPrecedence',
       'CastingPrecedence',
