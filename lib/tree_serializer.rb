@@ -10,13 +10,8 @@ class TreeSerializer
   # @return [String]
   def serialize(output_format)
     object_to_serialize = {}
-    object_to_serialize[:links] = @dependency_tree.links_with_types
-    object_to_serialize[:links_count] = @dependency_tree.links_count
-    object_to_serialize[:objects] = Hash[
-      @dependency_tree.objects.map do |o|
-        [o, { type: @dependency_tree.type(o) }]
-      end
-    ]
+    object_to_serialize[:edges] = @dependency_tree.edges_array
+    object_to_serialize[:nodes] = @dependency_tree.nodes_array
 
     case output_format
     when 'dot'
