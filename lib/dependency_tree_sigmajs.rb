@@ -8,7 +8,7 @@ class DependencyTreeSigmajs
   end
  
   #method to add source and dest details
-  def add_sigmajs(source, dest, source_type = DependencyItemType::UNKNOWN, dest_type = DependencyItemType::UNKNOWN, link_type = DependencyItemType::UNKNOWN)
+  def add_sigmajs(source, dest)
 
     source_node = nil
     if @nodes[source] == nil

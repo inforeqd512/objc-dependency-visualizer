@@ -5,11 +5,12 @@ class SwiftAstDependenciesGeneratorNew
 
   attr_reader :dependency
 
-  def initialize(swift_files_path, swift_ignore_folders, swift_ast_show_parsed_tree, verbose = false)
+  def initialize(swift_files_path, swift_ignore_folders, swift_ast_show_parsed_tree, verbose = false, sigmajs)
     @swift_files_path = swift_files_path
     @swift_ignore_folders = swift_ignore_folders
     @verbose = verbose
     @dump_parsed_tree = swift_ast_show_parsed_tree
+    @sigmajs = sigmajs
   end
 
   def generate_dependencies
@@ -30,7 +31,11 @@ class SwiftAstDependenciesGeneratorNew
 
     #yield source and destination to create a tree
     pair_source_dest(@dependency) do  |source, source_type, dest, dest_type, link_type|
-      yield source, source_type, dest, dest_type, link_type
+      if @sigmajs
+        yield source, dest
+      else
+        yield source, source_type, dest, dest_type, link_type
+      end
     end
 
     print_hierarchy(@dependency)

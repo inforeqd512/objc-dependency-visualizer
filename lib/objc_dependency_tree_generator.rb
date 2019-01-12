@@ -8,6 +8,7 @@ require 'swift-ast-dump/swift_ast_dependencies_generator_new'
 require 'objc/objc_dependencies_generator'
 require 'sourcekitten/sourcekitten_dependencies_generator'
 require 'dependency_tree'
+require 'dependency_tree_sigmajs'
 require 'tree_serializer'
 
 class DependencyTreeGenerator
@@ -58,6 +59,11 @@ class DependencyTreeGenerator
       o.on('-k FILENAME', 'Generate dependencies from source kitten output (json)') do |v|
         options[:sourcekitten_dependencies_file] = v
       end
+      
+      o.on('--sigmajs SIGMAJS', "SigmaJs representation") do |sigmajs|
+        $stderr.puts "-----sigmajs: #{sigmajs}-----"
+        options[:sigmajs] = true
+      end
 
       # o.on('--ast-file FILENAME', 'Generate dependencies from the swift ast dump output (ast)') do |v|
       #   options[:swift_ast_dump_file] = v
@@ -101,8 +107,8 @@ class DependencyTreeGenerator
 
   def build_dependency_tree
     tree = generate_dependency_tree
-    tree.filter { |item, _| is_valid_dest?(item, @exclusion_prefixes) } if @options[:ignore_primitive_types]
-    tree.filter_links { |_ , _ , type | type == DependencyLinkType::INHERITANCE } if @options[:show_inheritance_only]
+    # tree.filter { |item, _| is_valid_dest?(item, @exclusion_prefixes) } if @options[:ignore_primitive_types]
+    # tree.filter_links { |_ , _ , type | type == DependencyLinkType::INHERITANCE } if @options[:show_inheritance_only]
     tree
   end
 
@@ -112,11 +118,17 @@ class DependencyTreeGenerator
   end
 
   def tree_for_objc_swift
+
     tree = DependencyTree.new
+    if @options[:sigmajs]
+      $stderr.puts("@options[:sigmajs]")
+      tree = DependencyTreeSigmajs.new
+    end
 
     return tree if !@options || @options.empty?
 
     update_tree_block = lambda { |source, source_type, dest, dest_type, link_type| tree.add_new(source, source_type, dest, dest_type, link_type) } 
+    update_tree_block_sigmajs = lambda { |source, dest| tree.add_sigmajs(source, dest) } 
 
     if @options[:derived_data_paths]
       $stderr.puts "\n\n--------------objc enter--------------"
@@ -126,13 +138,18 @@ class DependencyTreeGenerator
     end
 
     if @options[:swift_files_path]
-      $stderr.puts "\n\n--------------objc enter: build_ast_dependency_tree--------------"
       generator = SwiftAstDependenciesGeneratorNew.new(
         @options[:swift_files_path],
         @options[:swift_ignore_folders],
-        @options[:swift_ast_show_parsed_tree]
+        @options[:swift_ast_show_parsed_tree],
+        @options[:sigmajs]
       )
-      generator.generate_dependencies(&update_tree_block)
+      if @options[:sigmajs]
+        $stderr.puts "\n\n--------------swift enter: sigmajs--------------"
+        generator.generate_dependencies(&update_tree_block_sigmajs)        
+      else
+        generator.generate_dependencies(&update_tree_block)
+      end
     end
 
     tree
