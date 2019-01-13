@@ -36,6 +36,12 @@ class DependencyTree
   #method to add source and dest details
   def add_new(source, dest, source_type = DependencyItemType::UNKNOWN, dest_type = DependencyItemType::UNKNOWN, link_type = DependencyItemType::UNKNOWN)
 
+    if is_valid_dest?(dest, 'NS|UI|CA|CG|CI|CF') == false ||
+       is_valid_dest?(source, 'NS|UI|CA|CG|CI|CF') == false
+       $stderr.puts "--------false: #{source}-------#{dest}-------"
+      return
+    end
+
     source_node = nil
     if @nodes[source] == nil
       node = TreeNode.new
