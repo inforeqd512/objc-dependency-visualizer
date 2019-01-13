@@ -101,13 +101,43 @@ class DependencyTree
     sorted_nodes = @nodes.values.sort_by { |obj| obj.num_links }.reverse
 
     total_cols = 50
-    scale = 30
+    current_col_count = 1
+
+    scale = 50
+    current_num_links = 0
+
+    current_grid_x = 0
+    current_grid_y = 0
+    step_y = 2
 
     total_nodes = sorted_nodes.count() 
     for i in 0..(total_nodes - 1)
       node = sorted_nodes[i]
-      node.x = (i % total_cols) * scale
-      node.y = ((i / total_cols).floor) * scale
+
+      if current_num_links == 0
+        current_num_links = node.num_links
+      end
+
+      #move in the grid
+      if current_col_count <= total_cols
+        if current_num_links == node.num_links
+          current_grid_x += 1
+        else
+          current_num_links = node.num_links
+          current_grid_x = 1
+          current_grid_y += step_y
+          current_col_count = 1
+        end
+      else
+        current_col_count = 1
+        current_grid_x = 1
+        current_grid_y += 1
+      end
+
+      node.x = current_grid_x * scale
+      node.y = current_grid_y * scale
+      current_col_count += 1
+
     end
 
     sorted_nodes
