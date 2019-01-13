@@ -92,7 +92,7 @@ class DependencyTree
   end
 
   def nodes_array
-    sorted_nodes = @nodes.values.sort_by { |obj| obj.num_links }
+    sorted_nodes = @nodes.values.sort_by { |obj| obj.num_links }.reverse
 
     total_cols = 50
     scale = 30
