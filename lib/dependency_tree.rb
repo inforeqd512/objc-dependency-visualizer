@@ -46,6 +46,8 @@ class DependencyTree
       @nodes[source] = node
       source_node = node
       source_node = @nodes[source]
+    else
+      source_node = @nodes[source]
     end
 
     dest_node = nil
@@ -68,18 +70,15 @@ class DependencyTree
     return if connected?(source, dest)
 
     if source_node != nil and dest_node != nil
-      edge_node = nil
-      if connected?(source, dest) == false
-        edge = TreeEdge.new
-        edge.source = source_node.id
-        edge.target = dest_node.id
-        @id_generator += 1
-        edge.id = @id_generator
+      edge = TreeEdge.new
+      edge.source = source_node.id
+      edge.target = dest_node.id
+      @id_generator += 1
+      edge.id = @id_generator
 
-        @edges.push(edge)
-        edge_node = node
-        source_node.num_links += 1
-      end
+      $stderr.puts "------edge source: #{source} --- dest: #{dest}"
+      @edges.push(edge)
+      source_node.num_links += 1
     end
 
 

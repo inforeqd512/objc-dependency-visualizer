@@ -145,10 +145,10 @@ def pair_source_dest (dependency)
       dependency_hierarchy_node.superclass_or_protocol.each { |name| #when no superclass means the Sublass is apples classes, ignore them
         yield name, dependency_hierarchy_node.subclass, DependencyItemType::CLASS, DependencyItemType::CLASS, DependencyLinkType::INHERITANCE
       }
-      dependency_hierarchy_node.dependency.each { |node|
-        yield dependency_hierarchy_node.subclass, node, DependencyItemType::CLASS, DependencyItemType::CLASS, DependencyLinkType::CALL
-      }
     end
+    dependency_hierarchy_node.dependency.each { |node|
+      yield dependency_hierarchy_node.subclass, node, DependencyItemType::CLASS, DependencyItemType::CLASS, DependencyLinkType::CALL
+    }
   }
 end
 
