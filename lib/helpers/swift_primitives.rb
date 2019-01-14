@@ -313,7 +313,11 @@ class SwiftPrimitives
       'Encoder',
       'Constants',
       'DispatchQueue+Main',
-      'Observable'
+      'Observable',
+      'MockServiceProvider',
+      'MASTERCARD',
+      'VISA',
+      'UNKNOWN'
 
     ]).freeze
 
