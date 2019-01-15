@@ -293,13 +293,13 @@ class SwiftPrimitives
       'Friday',
       'Saturday',
       'Sunday',
-      'BUY',
+      'BUY', 'Buy',
       'ACCUMULATE',
       'HOLD',
       'REDUCE',
       'UNDER',
       'REVIEW',
-      'SELL',
+      'SELL', 'Sell',
       'PHONE',
       'INTERNATIONALPHONE',
       'FAX',
@@ -317,7 +317,11 @@ class SwiftPrimitives
       'MockServiceProvider',
       'MASTERCARD',
       'VISA',
-      'UNKNOWN'
+      'UNKNOWN',
+      'Active',
+      'Initiated',
+      'Bound',
+      'BUILDER'
 
     ]).freeze
 
