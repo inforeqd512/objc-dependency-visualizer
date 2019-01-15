@@ -116,7 +116,12 @@ class DependencyTreeGenerator
 
     return tree if !@options || @options.empty?
 
-    update_tree_block = lambda { |source, source_type, dest, dest_type, link_type| tree.add_new(source, source_type, dest, dest_type, link_type) } 
+    update_tree_block = lambda { |source, source_type, dest, dest_type, link_type| tree.add(source, source_type, dest, dest_type, link_type) } 
+
+    if @options[:output_format].include?("sigmajs")
+      update_tree_block = lambda { |source, source_type, dest, dest_type, link_type| tree.add_sigmajs(source, source_type, dest, dest_type, link_type) } 
+
+    end
 
     if @options[:derived_data_paths]
       $stderr.puts "\n\n--------------objc enter--------------"

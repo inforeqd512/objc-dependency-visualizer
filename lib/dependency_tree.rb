@@ -34,14 +34,17 @@ class DependencyTree
 
  
   #method to add source and dest details
-  def add_new(source, dest, source_type = DependencyItemType::UNKNOWN, dest_type = DependencyItemType::UNKNOWN, link_type = DependencyItemType::UNKNOWN)
+  def add(source, dest, source_type = DependencyItemType::UNKNOWN, dest_type = DependencyItemType::UNKNOWN, link_type = DependencyItemType::UNKNOWN)
 
-    # d3js_display(source, dest, source_type, dest_type, link_type)
+    d3js_display(source, dest, source_type, dest_type, link_type)
+    
+  end
+
+  def add_sigmajs(source, dest, source_type = DependencyItemType::UNKNOWN, dest_type = DependencyItemType::UNKNOWN, link_type = DependencyItemType::UNKNOWN)
 
     sigmajs_display_data(source, dest)
     
   end
-
   #
   #
   #
@@ -54,6 +57,8 @@ class DependencyTree
     register(source, source_type)
     register(dest, dest_type)
     register_link(source, dest, link_type)
+
+    return if connected?(source, dest)
 
     @links_count += 1
     @links += [{source: source, dest: dest}]
