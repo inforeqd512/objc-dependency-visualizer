@@ -50,6 +50,7 @@ class ASTHierarchyCreator
     is_swift_tag = /<range:/ #if the 'range' word appears then its a swift tag line
     subclass_name_regex = /(?<=:\s)(.*)/ #in sentence with name:, get the subclass name from the : to end of sentence
     maybe_singleton = ""
+    maybe_singleton_file_line = ""
     definitely_singleton = ""
 
     #class, protocol, property, category, return type, method parameter type, enum, struct
@@ -113,6 +114,7 @@ class ASTHierarchyCreator
   
         if /identifier:\s`[A-Z].*`/.match(file_line) != nil
           match_text = /identifier:\s`(?<type_name>[A-Z].*)`/.match(file_line)
+          maybe_singleton_file_line = file_line
           maybe_singleton = match_text[:type_name]
 
         elsif (/identifier: `shared`/.match(file_line) != nil) and 
@@ -125,8 +127,10 @@ class ASTHierarchyCreator
           definitely_singleton = maybe_singleton + ".main"
           maybe_singleton = ""
         
-        elsif maybe_singleton.length > 0 #if the identifier tag was seen, but its not identified to be a singleton then forget about it as possible singleto
+        elsif maybe_singleton.length > 0 #if the identifier tag was seen, but its not identified to be a singleton then forget about it as possible singleton
+          current_node.add_dependency(maybe_singleton_file_line, true)
           maybe_singleton = ""
+          maybe_singleton_file_line = ""
         end
 
         if /[a-z].main/.match(file_line) != nil
@@ -202,7 +206,7 @@ class ASTHierarchyCreator
           elsif (definitely_singleton.length > 0)
             #add the singleton if it was found
             current_node.add_dependency(definitely_singleton)
-          else
+          elsif maybe_singleton.length == 0 #if its not being considered for singleton candidate, then add it else singleton logic will add it
             #find all words starting with Capital letter and add it as dependency
             current_node.add_dependency(file_line, true)
           end
