@@ -154,67 +154,72 @@ class ASTHierarchyCreator
 
         # end
         
-        #subclass, protocol, extension name - this works as the subclass will be updated only if it was nil before.. 
-        if (file_line.include? "name:" and tag_stack.currently_seeing_tag.include? "_decl") or
-           (file_line.include? "type:" and tag_stack.currently_seeing_tag.include? "ext_decl")
-          if current_node.subclass.length == 0
-            name_match = subclass_name_regex.match(file_line) #extract subclass name 
-            name = name_match[0]
+        #ignore enum_decl
+        if !tag_stack.currently_seeing_tag.include? "enum_decl"
+        
+          #subclass, protocol, extension name - this works as the subclass will be updated only if it was nil before.. 
+          if (file_line.include? "name:" and tag_stack.currently_seeing_tag.include? "_decl") or
+            (file_line.include? "type:" and tag_stack.currently_seeing_tag.include? "ext_decl")
+            if current_node.subclass.length == 0
+              name_match = subclass_name_regex.match(file_line) #extract subclass name 
+              name = name_match[0]
 
-            #find the node with the name and make it current, so that we avoid duplicates
-            existing_subclass_or_extension_node = find_node(name, dependency)
-            if existing_subclass_or_extension_node == nil
-              current_node.subclass = name
-              Logger.log_message "-----NO existing_subclass_or_extension_node : #{current_node}--AAAAA--subclass: #{current_node.subclass}----"
-            else
-              dependency.pop #remove the node created at _decl above
-              current_node = existing_subclass_or_extension_node
-              Logger.log_message "--------existing_subclass_or_extension_node : #{current_node.subclass}----dependency: #{current_node.dependency.count}--"
+              #find the node with the name and make it current, so that we avoid duplicates
+              existing_subclass_or_extension_node = find_node(name, dependency)
+              if existing_subclass_or_extension_node == nil
+                current_node.subclass = name
+                Logger.log_message "-----NO existing_subclass_or_extension_node : #{current_node}--AAAAA--subclass: #{current_node.subclass}----"
+              else
+                dependency.pop #remove the node created at _decl above
+                current_node = existing_subclass_or_extension_node
+                Logger.log_message "--------existing_subclass_or_extension_node : #{current_node.subclass}----dependency: #{current_node.dependency.count}--"
+              end
+            end
+          #superclass or protocol name
+          elsif file_line.include? "parent_types:" and tag_stack.currently_seeing_tag.include? "_decl" #check for -decl just to be safe
+            current_node.add_polymorphism(file_line)
+
+          #for all other types of decl or lines, check for words beginning with capital and those are all dependencies 
+          #property in class 
+          # var_decl <range: 16:5-16:42>
+          #   pattern: statusDescription: Optional<String>
+          #   pattern: accountNames: Optional<Array<AccountNames>>
+          # iboutlet
+          # var_decl <range: 39:5-39:60>
+          #   attributes: `@IBOutlet`
+          #   modifiers: public weak
+          #   pattern: buttonBarView: ImplicitlyUnwrappedOptional<ButtonBarView>
+          # var_decl <range: 35:5-35:73>
+          #   modifiers: public
+          #   pattern: buttonBarItemSpec: ImplicitlyUnwrappedOptional<ButtonBarItemSpec<ButtonBarCellType>>
+          # const_decl <range: 31:5-31:50>
+          #   modifiers: private
+          #   pattern: scheduler: RateAndReviewScheduler
+          # func_decl <range: 5-217:6>
+          #   name: collectionView
+          #   modifiers: open
+          #   parameters:
+          #   0: _ collectionView: UICollectionView
+          #   1: layout collectionViewLayout: UICollectionViewLayout
+          #   2: sizeForItemAtIndexPath indexPath: IndexPath
+          #   return_type: `CGSize`
+          elsif is_swift_tag.match(file_line) == nil #when <range: is NOT present (means its NOT a tag)
+            #ignore tags where the word will begin with Capital letter but it does not mean its a dependency
+            #              kind: `string`, raw_text: `"UserAgentAppName"`
+            #ignore tags where you will definitely not find any dependencies eg literal:|method_name:|attributes:|
+            #ignore tags where the place where the dependency would have started is a small case so it's not a dependency eg identifier: `[a-z]
+            #ignore tags with singleton as it's already taken care of above eg identifier: `shared`|identifier: `main`/
+            if file_line.match(/raw_text:|literal:|method_name:|attributes:|identifier: `[a-z]|name: `[a-z]|identifier: `shared`|identifier: `main`/) != nil
+              #ignore
+            elsif (definitely_singleton.length > 0)
+              #add the singleton if it was found
+              current_node.add_dependency(definitely_singleton)
+            elsif maybe_singleton.length == 0 #if its not being considered for singleton candidate, then add it else singleton logic will add it
+              #find all words starting with Capital letter and add it as dependency
+              current_node.add_dependency(file_line, true)
             end
           end
-        #superclass or protocol name
-        elsif file_line.include? "parent_types:" and tag_stack.currently_seeing_tag.include? "_decl" #check for -decl just to be safe
-          current_node.add_polymorphism(file_line)
 
-        #for all other types of decl or lines, check for words beginning with capital and those are all dependencies 
-        #property in class 
-        # var_decl <range: 16:5-16:42>
-        #   pattern: statusDescription: Optional<String>
-        #   pattern: accountNames: Optional<Array<AccountNames>>
-        # iboutlet
-        # var_decl <range: 39:5-39:60>
-        #   attributes: `@IBOutlet`
-        #   modifiers: public weak
-        #   pattern: buttonBarView: ImplicitlyUnwrappedOptional<ButtonBarView>
-        # var_decl <range: 35:5-35:73>
-        #   modifiers: public
-        #   pattern: buttonBarItemSpec: ImplicitlyUnwrappedOptional<ButtonBarItemSpec<ButtonBarCellType>>
-        # const_decl <range: 31:5-31:50>
-        #   modifiers: private
-        #   pattern: scheduler: RateAndReviewScheduler
-        # func_decl <range: 5-217:6>
-        #   name: collectionView
-        #   modifiers: open
-        #   parameters:
-        #   0: _ collectionView: UICollectionView
-        #   1: layout collectionViewLayout: UICollectionViewLayout
-        #   2: sizeForItemAtIndexPath indexPath: IndexPath
-        #   return_type: `CGSize`
-        elsif is_swift_tag.match(file_line) == nil #when <range: is NOT present (means its NOT a tag)
-          #ignore tags where the word will begin with Capital letter but it does not mean its a dependency
-          #              kind: `string`, raw_text: `"UserAgentAppName"`
-          #ignore tags where you will definitely not find any dependencies eg literal:|method_name:|attributes:|
-          #ignore tags where the place where the dependency would have started is a small case so it's not a dependency eg identifier: `[a-z]
-          #ignore tags with singleton as it's already taken care of above eg identifier: `shared`|identifier: `main`/
-          if file_line.match(/raw_text:|literal:|method_name:|attributes:|identifier: `[a-z]|name: `[a-z]|identifier: `shared`|identifier: `main`/) != nil
-            #ignore
-          elsif (definitely_singleton.length > 0)
-            #add the singleton if it was found
-            current_node.add_dependency(definitely_singleton)
-          elsif maybe_singleton.length == 0 #if its not being considered for singleton candidate, then add it else singleton logic will add it
-            #find all words starting with Capital letter and add it as dependency
-            current_node.add_dependency(file_line, true)
-          end
         end
 
       end
@@ -223,6 +228,7 @@ class ASTHierarchyCreator
     return dependency
 
   end
+
 
   def ast_tags_in_file(filename)        
     $stderr.puts("--------ast_tags_in_file: #{filename}-------------")
