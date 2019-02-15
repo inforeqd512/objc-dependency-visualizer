@@ -85,18 +85,22 @@ end
 
 def update_tag_hierarchy (tag_hierarchy_node, tag_stack)
   # $stderr.puts "-----tag_stack: #{tag_stack}----"
+  #insert the first node
   if tag_stack.peek_last == nil
     tag_stack.push tag_hierarchy_node
     # $stderr.puts "----push---#{tag_hierarchy_node.level_spaces_length}"
   else
+    #insert the child tag 
     if tag_stack.peek_last.level_spaces_length < tag_hierarchy_node.level_spaces_length
       tag_stack.push tag_hierarchy_node
       # $stderr.puts "----push---#{tag_hierarchy_node.level_spaces_length}"
     else
+      #insert sibling tag
       if tag_stack.peek_last.level_spaces_length == tag_hierarchy_node.level_spaces_length
         tag_stack.push tag_hierarchy_node
         # $stderr.puts "----push---#{tag_hierarchy_node.level_spaces_length}"
       else
+        #when inserting a tag at level higher than the last tag in the list, then pop all the tags till you reach a sibling and then add the tag
         num_nodes_popped = 0
         while tag_stack.peek_last.level_spaces_length > tag_hierarchy_node.level_spaces_length
           x = tag_stack.pop
