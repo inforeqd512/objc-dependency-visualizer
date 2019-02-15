@@ -6,6 +6,17 @@ class TreeSerializer
     @dependency_tree = dependency_tree
   end
 
+  def get_object_to_serialise()
+    object_to_serialize = {}
+    object_to_serialize[:links] = @dependency_tree.links_with_types
+    object_to_serialize[:links_count] = @dependency_tree.links_count
+    object_to_serialize[:objects] = Hash[
+      @dependency_tree.objects.map do |o|
+        [o, { type: @dependency_tree.type(o) }]
+      end
+    ]
+    return object_to_serialize
+  end
 
   # @return [String]
   def serialize(output_format)
@@ -17,14 +28,19 @@ class TreeSerializer
     when 'sigmajs'
       serialize_to_sigmajs(object_to_serialize)
     when 'dot'
+      object_to_serialize = get_object_to_serialise()
       serialize_to_dot(object_to_serialize)
     when 'json-pretty'
+      object_to_serialize = get_object_to_serialise()
       serialize_to_json_pretty(object_to_serialize)
     when 'json'
+      object_to_serialize = get_object_to_serialise()
       serialize_to_json(object_to_serialize)
     when 'json-var'
+      object_to_serialize = get_object_to_serialise()
       serialize_to_json_var(object_to_serialize)
     when 'yaml'
+      object_to_serialize = get_object_to_serialise()
       serialize_to_yaml(object_to_serialize)
     else
       raise
