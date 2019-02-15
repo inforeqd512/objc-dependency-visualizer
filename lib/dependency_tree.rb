@@ -24,22 +24,36 @@ class DependencyTree
     @registry = {}
     @types_registry = {}
     @links_registry = {}
+    @nodes = {}
+    @edges = []
+    @id_generator = 0
   end
 
-  def add(source, dest, type = DependencyLinkType::UNKNOWN)
-    register source
-    register dest
-    register_link(source, dest, type)
 
-    return if connected?(source, dest)
 
-    @links_count += 1
-    @links += [{source: source, dest: dest}]
 
+ 
+  #method to add source and dest details
+  def add(source, dest, source_type = DependencyItemType::UNKNOWN, dest_type = DependencyItemType::UNKNOWN, link_type = DependencyItemType::UNKNOWN)
+
+    d3js_display(source, dest, source_type, dest_type, link_type)
+    
   end
 
-  def add_new(source, dest, source_type = DependencyItemType::UNKNOWN, dest_type = DependencyItemType::UNKNOWN, link_type = DependencyItemType::UNKNOWN)
+  def add_sigmajs(source, dest, source_type = DependencyItemType::UNKNOWN, dest_type = DependencyItemType::UNKNOWN, link_type = DependencyItemType::UNKNOWN)
 
+    sigmajs_display_data(source, dest)
+    
+  end
+  #
+  #
+  #
+  # => D3JS display
+  #
+  #
+  #
+
+  def d3js_display(source, dest, source_type, dest_type, link_type)
     register(source, source_type)
     register(dest, dest_type)
     register_link(source, dest, link_type)
@@ -114,8 +128,6 @@ class DependencyTree
     @links_registry.delete(link_key(source, dest))
   end
 
-  private
-
   def register_link(source, dest, type)
     return unless source && dest
     link_key = link_key(source, dest)
@@ -127,6 +139,219 @@ class DependencyTree
 
   def link_key(source, dest)
     source + '!<->!' + dest
+  end
+
+#edges that only connect the included nodes
+  def edges_array
+    nodes = sorted_nodes()
+    keep_num_links_more_than = 2
+    $stderr.puts "------edges filtering to get edges having more links than: #{keep_num_links_more_than}---------"
+    edges_for_nodes_being_displayed = filtered_edges_per_num_links(@edges, nodes, keep_num_links_more_than)
+
+    edges_for_nodes_being_displayed
+  end
+
+  #filters out the edges that connect the excluded nodes
+  def filtered_edges_per_num_links (edges, nodes, keep_num_links_more_than)
+    removed_nodes_ids = nodes.select { |node| node.num_links <= keep_num_links_more_than }.map { |node| node.id }
+
+    filtered_edges = edges.select { |edge| 
+      removed_nodes_ids.include?(edge.source) == false and 
+      removed_nodes_ids.include?(edge.target) == false
+    }
+    
+    filtered_edges
+  end
+
+  #
+  #
+  #
+  # => SIGMAJS display
+  #
+  #
+  #
+  #array of nodes sorted by number of links in reverse order of the links
+  def sigmajs_display_data (source, dest)
+
+    if is_valid_dest?(dest, 'NS|UI|CA|CG|CI|CF') == false ||
+       is_valid_dest?(source, 'NS|UI|CA|CG|CI|CF') == false
+       $stderr.puts "--------false: #{source}-------#{dest}-------"
+      return
+    end
+
+    source_node = nil
+    if @nodes[source] == nil
+      node = TreeNode.new
+      node.label = source
+      @id_generator += 1
+      node.id = @id_generator
+
+      @nodes[source] = node
+      source_node = node
+      source_node = @nodes[source]
+    else
+      source_node = @nodes[source]
+    end
+
+    dest_node = nil
+    if @nodes[dest] == nil
+      node = TreeNode.new
+      node.label = dest
+      @id_generator += 1
+      node.id = @id_generator
+
+      @nodes[dest] = node
+      dest_node = node
+    else
+      dest_node = @nodes[dest]
+    end
+
+    return if connected_sigmajs?(source_node.id, dest_node.id)
+
+    if source_node != nil and dest_node != nil
+      edge = TreeEdge.new
+      edge.source = source_node.id
+      edge.target = dest_node.id
+      @id_generator += 1
+      edge.id = @id_generator
+
+      $stderr.puts "------edge source: #{source} --- dest: #{dest}"
+      @edges.push(edge)
+      source_node.num_links += 1
+    end
+
+  end
+
+  def connected_sigmajs?(source, dest)
+    @edges.any? {|edge| edge.source == source and edge.target == dest}
+  end
+
+  def sorted_nodes 
+    sorted_nodes = @nodes.values.sort_by { |obj| obj.num_links }.reverse
+    sorted_nodes
+  end
+
+  #array of nodes with high connections, arranged in a grid required by sigmajs
+  def nodes_array
+    sorted_nodes = sorted_nodes()
+
+    keep_num_links_more_than = 2
+    $stderr.puts "------nodes filtering to get nodes having more links than: #{keep_num_links_more_than}---------"
+    nodes_with_high_connections = filtered_nodes_per_num_links(sorted_nodes, keep_num_links_more_than)
+
+    grid_arranged = arrange_in_grid(nodes_with_high_connections)
+
+    grid_arranged
+  end
+
+  #array of nodes with high connections
+  def filtered_nodes_per_num_links (nodes, keep_num_links_more_than)
+    filtered_nodes = nodes.select { |node| node.num_links > keep_num_links_more_than }
+    filtered_nodes
+  end
+
+  #arrane in grid of (0,0) in top left and increasing by scale 50px for each change in num-links and 30px across with nodes in the same num-links
+  def arrange_in_grid (sorted_nodes)
+
+    total_cols = 50
+    current_col_count = 1
+
+    scale = 50
+    current_num_links = 0
+
+    current_grid_x = 0
+    current_grid_y = 0
+    step_y = 2
+
+    total_nodes = sorted_nodes.count() 
+    for i in 0..(total_nodes - 1)
+      node = sorted_nodes[i]
+
+      if current_num_links == 0
+        current_num_links = node.num_links
+      end
+
+      #move in the grid
+      if current_col_count <= total_cols
+        if current_num_links == node.num_links
+          current_grid_x += 1
+        else
+          current_num_links = node.num_links
+          current_grid_x = 1
+          current_grid_y += step_y
+          current_col_count = 1
+        end
+      else
+        current_col_count = 1
+        current_grid_x = 1
+        current_grid_y += 1
+      end
+
+      node.x = current_grid_x * scale
+      node.y = current_grid_y * scale
+      current_col_count += 1
+
+    end
+
+    sorted_nodes
+  end
+end
+
+
+class TreeNode
+
+  attr_accessor :label, :x, :y, :id, :color, :size, :num_links
+
+  def initialize
+    @label = ""
+    @x = 0.0
+    @y = 0.0
+    @id = 0
+    @color = '#36648B'
+    @size = 10
+    @num_links = 0
+  end
+
+  def as_json(options={})
+    {
+        label: @label,
+        x: @x,
+        y: @y,
+        id: @id,
+        color: @color,
+        size: @size,
+        num_links: @num_links
+
+    }
+  end
+
+  def to_json(*options)
+    as_json(*options).to_json(*options)
+  end
+
+end
+
+
+class TreeEdge
+
+  attr_accessor :source, :target, :id
+
+  def initialize
+    @source = 0
+    @target = 0
+    @id = 0
+  end
+
+  def as_json(options={})
+    {
+        source: @source,
+        target: @target,
+        id: @id
+    }
+  end
+
+  def to_json(*options)
+    as_json(*options).to_json(*options)
   end
 
 end

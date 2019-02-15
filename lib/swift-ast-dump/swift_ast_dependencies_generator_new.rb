@@ -55,31 +55,34 @@ class ASTHierarchyCreator
     is_swift_tag = /<range:/ #if the 'range' word appears then its a swift tag line
     subclass_name_regex = /(?<=:\s)(.*)/ #in sentence with name:, get the subclass name from the : to end of sentence
     maybe_singleton = ""
-          
+    maybe_singleton_file_line = ""
+    definitely_singleton = ""
+
     #class, protocol, property, category, return type, method parameter type, enum, struct
     ast_tags_in_file(filename) do |file_line|
 
       Logger.log_message file_line
 
 #basic logic - when you see top level tags usually _decl, then till the next top level is seen, every word that begins with Capital letter is a dependency
-#modifiers - ignore import_decl, top_level_decl - done till here
+#modifiers - ignore import_decl, top_level_decl
 #modifiers - identify singletons and set them up as dependencies
 #modifiers - only map for when marked as 'public' as others are internal and of no concern (this may take some work)
 
         #probably should consider only public interfaces as can we get important information from private ones?
 #modifier - when adding dependency, check its not same as subclass name 
 
+      
       tag_node_created = false
       if is_swift_tag.match(file_line) != nil #when <range: is present (means its a tag)
         Logger.log_message("--------is_swift_tag-------------")
         tag_node = SwiftTagHierarchyNode.new (file_line)
         node_below_top_level = tag_stack.node_just_below_top_level
-        if node_below_top_level == nil #if there is no node below top hierarchy then create tag node
+        if node_below_top_level == nil #insert top_level_decl
           num_nodes_popped = update_tag_hierarchy(tag_node, tag_stack)
           tag_node_created = true      
           Logger.log_message "-----tag_node_created------\n\n" #with the above basic logic, there should be no nodes popped          
-        else
-          if tag_node.level_spaces_length == node_below_top_level.level_spaces_length #if the new tag node is at same level as the second node from top level then create tag node
+        else #insert tags at just below top_level_decl ie. import_decl, class_decl, struct_decl, proto_decl, ext_decl, enum_decl etc
+          if tag_node.level_spaces_length == node_below_top_level.level_spaces_length #insert only if this tage is sibling of the tag just below top level 
             num_nodes_popped = update_tag_hierarchy(tag_node, tag_stack)
             Logger.log_message "-----tag_node_created------\n\n" #with the above basic logic, there should be no nodes popped
             tag_node_created = true      
@@ -93,40 +96,65 @@ class ASTHierarchyCreator
            file_line.include?("top_level_decl") == false   
           current_node = DependencyHierarchyNode.new
           Logger.log_message "----new node created: #{current_node}------"
-          dependency.push(current_node)
+          dependency.push(current_node) #push the current_node into dependancy graph now, but with the later check for duplicate subclass, it will be popped if another node already exists for it
         end       
       end
 
       if current_node != nil # swift file may have more than one top level nodes?
 
         #identify singletons and set them up as dependencies
+        #Singletons appear in AST as the following lines. First line contains the class name. Second line contains the fact that singleton is used
+        #   kind: `identifier`, identifier: `TouchIDManagerFactory`
+        # identifier: `sharedInstance`
+
+        #    init_decl <range: xxx.swift>
+        # 3: urlOpener: URLOpener = UIApplication.shared
+
+        # func_decl <range: xxx.swift:14:5-17:6>
+        # 0: for bundle: Bundle = Bundle.main
+
+        # func_decl <range: /Users/mistrys/Documents/Development/-Next/mobile-ios-github/Frameworks/UIKit/Sources/CGFloat+.swift:9:5-11:6>
+        # parameters:
+        # 0: displayScale: CGFloat = UIScreen.main.scale
+  
         if /identifier:\s`[A-Z].*`/.match(file_line) != nil
           match_text = /identifier:\s`(?<type_name>[A-Z].*)`/.match(file_line)
+          maybe_singleton_file_line = file_line
           maybe_singleton = match_text[:type_name]
 
         elsif (/identifier: `shared`/.match(file_line) != nil) and 
               (maybe_singleton.length > 0)
-          match_text = /identifier: `(?<type_name>shared)`/.match(file_line)
-          singleton_method = match_text[:type_name]
-          definitely_singleton = maybe_singleton + "+" + singleton_method
-          current_node.add_dependency(definitely_singleton)
+          definitely_singleton = maybe_singleton + ".shared"
           maybe_singleton = ""
 
         elsif (/identifier: `main`/.match(file_line) != nil) and 
               (maybe_singleton.length > 0)
-          match_text = /identifier: `(?<type_name>main)`/.match(file_line)
-          singleton_method = match_text[:type_name]
-          definitely_singleton = maybe_singleton + "+" + singleton_method
-          current_node.add_dependency(definitely_singleton)
+          definitely_singleton = maybe_singleton + ".main"
           maybe_singleton = ""
+        
+        elsif maybe_singleton.length > 0 #if the identifier tag was seen, but its not identified to be a singleton then forget about it as possible singleton
+          current_node.add_dependency(maybe_singleton_file_line, true)
+          maybe_singleton = ""
+          maybe_singleton_file_line = ""
         end
+
+        if /[a-z].main/.match(file_line) != nil
+          match_text = /(?<type_name>\w*.main)/.match(file_line)
+          definitely_singleton = match_text[:type_name]
+
+        elsif /[a-z].shared/.match(file_line) != nil
+          match_text = /(?<type_name>\w*.shared)/.match(file_line)
+          definitely_singleton = match_text[:type_name]
+
+        end
+
 
         # if (file_line.include? "access_level:" and tag_stack.currently_seeing_tag.include? "_decl") or
         #    (file_line.include? "modifiers:" and tag_stack.currently_seeing_tag.include? "_decl")
 
         # end
-
-        #subclass, protocol, extension name - this works as the subclass will be updated only if it was nil before.. This is a little buggy as when the tags are not present in the file, the subclass will get its name from another sentence that has type: in it
+        
+        #subclass, protocol, extension name - this works as the subclass will be updated only if it was nil before.. 
         if (file_line.include? "name:" and tag_stack.currently_seeing_tag.include? "_decl") or
            (file_line.include? "type:" and tag_stack.currently_seeing_tag.include? "ext_decl")
           if current_node.subclass.length == 0
@@ -139,7 +167,7 @@ class ASTHierarchyCreator
               current_node.subclass = name
               Logger.log_message "-----NO existing_subclass_or_extension_node : #{current_node}--AAAAA--subclass: #{current_node.subclass}----"
             else
-              dependency.pop #remove the node created at TAG_structure_type
+              dependency.pop #remove the node created at _decl above
               current_node = existing_subclass_or_extension_node
               Logger.log_message "--------existing_subclass_or_extension_node : #{current_node.subclass}----dependency: #{current_node.dependency.count}--"
             end
@@ -173,9 +201,18 @@ class ASTHierarchyCreator
         #   2: sizeForItemAtIndexPath indexPath: IndexPath
         #   return_type: `CGSize`
         elsif is_swift_tag.match(file_line) == nil #when <range: is NOT present (means its NOT a tag)
+          #ignore tags where the word will begin with Capital letter but it does not mean its a dependency
+          #              kind: `string`, raw_text: `"UserAgentAppName"`
+          #ignore tags where you will definitely not find any dependencies eg literal:|method_name:|attributes:|
+          #ignore tags where the place where the dependency would have started is a small case so it's not a dependency eg identifier: `[a-z]
+          #ignore tags with singleton as it's already taken care of above eg identifier: `shared`|identifier: `main`/
           if file_line.match(/raw_text:|literal:|method_name:|attributes:|identifier: `[a-z]|name: `[a-z]|identifier: `shared`|identifier: `main`/) != nil
             #ignore
-          else
+          elsif (definitely_singleton.length > 0)
+            #add the singleton if it was found
+            current_node.add_dependency(definitely_singleton)
+          elsif maybe_singleton.length == 0 #if its not being considered for singleton candidate, then add it else singleton logic will add it
+            #find all words starting with Capital letter and add it as dependency
             current_node.add_dependency(file_line, true)
           end
         end
