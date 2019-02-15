@@ -140,11 +140,11 @@ class ASTHierarchyCreator
           maybe_singleton_file_line = ""
         end
 
-        if /[a-z].main/.match(file_line) != nil
+        if /[a-z]\.main/.match(file_line) != nil
           match_text = /(?<type_name>\w*.main)/.match(file_line)
           definitely_singleton = match_text[:type_name]
 
-        elsif /[a-z].shared/.match(file_line) != nil
+        elsif /[a-z]\.shared/.match(file_line) != nil
           match_text = /(?<type_name>\w*.shared)/.match(file_line)
           definitely_singleton = match_text[:type_name]
 
