@@ -57,13 +57,16 @@ class ASTHierarchyCreator
     maybe_singleton = ""
     maybe_singleton_file_line = ""
     definitely_singleton = ""
+    currently_seeing_tag = ""
+    access_level_private = false
 
     #class, protocol, property, category, return type, method parameter type, enum, struct
     ast_tags_in_file(filename) do |file_line|
 
       Logger.log_message file_line
 
-#basic logic - when you see top level tags usually _decl, then till the next top level is seen, every word that begins with Capital letter is a dependency
+#basic logic - when you see top level tags usually _decl, then till the next top level is seen, every word that begins with Capital letter is a dependency. 
+#               However, in the tag stack still keep track of all other child _decl so you can ignore ones having 'private' modifiers
 #modifiers - ignore import_decl, top_level_decl
 #modifiers - identify singletons and set them up as dependencies
 #modifiers - only map for when marked as 'public' as others are internal and of no concern (this may take some work)
@@ -72,28 +75,31 @@ class ASTHierarchyCreator
 #modifier - when adding dependency, check its not same as subclass name 
 
       
-      tag_node_created = false
+      second_level_tag_node_created = false
       if is_swift_tag.match(file_line) != nil #when <range: is present (means its a tag)
         Logger.log_message("--------is_swift_tag-------------")
         tag_node = SwiftTagHierarchyNode.new (file_line)
+
         node_below_top_level = tag_stack.node_just_below_top_level
         if node_below_top_level == nil #insert top_level_decl
           num_nodes_popped = update_tag_hierarchy(tag_node, tag_stack)
-          tag_node_created = true      
-          Logger.log_message "-----tag_node_created------\n\n" #with the above basic logic, there should be no nodes popped          
+          Logger.log_message "-----top_level_decl node created ------\n\n"          
         else #insert tags at just below top_level_decl ie. import_decl, class_decl, struct_decl, proto_decl, ext_decl, enum_decl etc
           if tag_node.level_spaces_length == node_below_top_level.level_spaces_length #insert only if this tage is sibling of the tag just below top level 
             num_nodes_popped = update_tag_hierarchy(tag_node, tag_stack)
-            Logger.log_message "-----tag_node_created------\n\n" #with the above basic logic, there should be no nodes popped
-            tag_node_created = true      
+            second_level_tag_node_created = true 
+            currently_seeing_tag = tag_node.tag_name   
+            Logger.log_message "-----second_level_tag_node_created: #{currently_seeing_tag}------\n\n"   
+          else
+            num_nodes_popped = update_tag_hierarchy(tag_node, tag_stack)
+            Logger.log_message "-----child level created------\n\n" 
           end  
         end
       end
 
-      if tag_node_created == true #create a dependency node for each top level tag node created
+      if second_level_tag_node_created == true #create a dependency node for each top level tag node created
         if file_line.include?("_decl") and #this check required only so that we ensure we HAVE a node created with _decl for the subclass name check below
-           file_line.include?("import_decl") == false and  
-           file_line.include?("top_level_decl") == false   
+           file_line.include?("import_decl") == false   
           current_node = DependencyHierarchyNode.new
           Logger.log_message "----new node created: #{current_node}------"
           dependency.push(current_node) #push the current_node into dependancy graph now, but with the later check for duplicate subclass, it will be popped if another node already exists for it
@@ -133,7 +139,7 @@ class ASTHierarchyCreator
           maybe_singleton = ""
         
         elsif maybe_singleton.length > 0 #if the identifier tag was seen, but its not identified to be a singleton then forget about it as possible singleton
-          if !tag_stack.currently_seeing_tag.include? "enum_decl" #ignore enum when adding non-singleton dependencies
+          if !currently_seeing_tag.include? "enum_decl" #ignore enum when adding non-singleton dependencies
             current_node.add_dependency(maybe_singleton_file_line, true)
           end
           maybe_singleton = ""
@@ -150,18 +156,25 @@ class ASTHierarchyCreator
 
         end
 
-
-        # if (file_line.include? "access_level:" and tag_stack.currently_seeing_tag.include? "_decl") or
-        #    (file_line.include? "modifiers:" and tag_stack.currently_seeing_tag.include? "_decl")
+        if file_line.include? "access_level: private"
+          Logger.log_message "-----access_level: private----"
+          access_level_private = true
+        else
+          access_level_private = false
+        end
+        # if (file_line.include? "access_level:" and currently_seeing_tag.include? "_decl") or
+        #    (file_line.include? "modifiers:" and currently_seeing_tag.include? "_decl")
 
         # end
         
+        #only consider non private access_level 
+        if access_level_private = false
         #ignore enum_decl
-        if !tag_stack.currently_seeing_tag.include? "enum_decl"
+        if !currently_seeing_tag.include? "enum_decl"
         
           #subclass, protocol, extension name - this works as the subclass will be updated only if it was nil before.. 
-          if (file_line.include? "name:" and tag_stack.currently_seeing_tag.include? "_decl") or
-            (file_line.include? "type:" and tag_stack.currently_seeing_tag.include? "ext_decl")
+          if (file_line.include? "name:" and currently_seeing_tag.include? "_decl") or
+            (file_line.include? "type:" and currently_seeing_tag.include? "ext_decl")
             if current_node.subclass.length == 0
               name_match = subclass_name_regex.match(file_line) #extract subclass name 
               name = name_match[0]
@@ -178,8 +191,10 @@ class ASTHierarchyCreator
               end
             end
           #superclass or protocol name
-          elsif file_line.include? "parent_types:" and tag_stack.currently_seeing_tag.include? "_decl" #check for -decl just to be safe
-            current_node.add_polymorphism(file_line)
+          elsif file_line.include? "parent_types:" and currently_seeing_tag.include? "_decl" #check for -decl just to be safe
+            if current_node.superclass_or_protocol.length == 0
+              current_node.add_polymorphism(file_line)
+            end
 
           #for all other types of decl or lines, check for words beginning with capital and those are all dependencies 
           #property in class 
@@ -222,6 +237,7 @@ class ASTHierarchyCreator
             end
           end
 
+        end
         end
 
       end
