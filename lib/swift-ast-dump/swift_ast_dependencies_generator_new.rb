@@ -133,7 +133,9 @@ class ASTHierarchyCreator
           maybe_singleton = ""
         
         elsif maybe_singleton.length > 0 #if the identifier tag was seen, but its not identified to be a singleton then forget about it as possible singleton
-          current_node.add_dependency(maybe_singleton_file_line, true)
+          if !tag_stack.currently_seeing_tag.include? "enum_decl" #ignore enum when adding non-singleton dependencies
+            current_node.add_dependency(maybe_singleton_file_line, true)
+          end
           maybe_singleton = ""
           maybe_singleton_file_line = ""
         end
