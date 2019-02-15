@@ -75,8 +75,10 @@ class DependencyHierarchyNode
     token_list.each { |token| 
       if token.length > 1 #ignore any empty or Generic <T> etc types of tokens and add those directly as dependencies. keep track of exclusions in the swift primitives list
         if token =~ /^[A-Z]/ #if string starts with Capital letter then it's a Type eg String etc
-          Logger.log_message("--------add_tokenized_dependency token: #{token}-------------")
-          yield token
+          if token != token.upcase #if the word is all upper case then it's some string or constant or switch case and we're not interested in it
+            Logger.log_message("--------add_tokenized_dependency token: #{token}-------------")
+            yield token
+          end
         end    
       end
     }
