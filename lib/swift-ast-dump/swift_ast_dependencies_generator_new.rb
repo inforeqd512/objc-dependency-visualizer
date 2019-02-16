@@ -53,7 +53,6 @@ class ASTHierarchyCreator
     current_node = nil
 
     is_swift_tag = /<range:/ #if the 'range' word appears then its a swift tag line
-    subclass_name_regex = /(?<=:\s)(.*)/ #in sentence with name:, get the subclass name from the : to end of sentence
     maybe_singleton = ""
     maybe_singleton_file_line = ""
     currently_seeing_tag = ""
@@ -76,18 +75,18 @@ class ASTHierarchyCreator
         node_below_top_level = tag_stack.node_just_below_top_level
         if node_below_top_level == nil #insert top_level_decl
           num_nodes_popped = update_tag_hierarchy(tag_node, tag_stack)
-          Logger.log_message "-----top_level_decl node created ------\n\n"          
+          Logger.log_message "-----top_level_decl node created ---#{tag_node.tag_name}---\n\n"          
         else #insert tags at just below top_level_decl ie. import_decl, class_decl, struct_decl, proto_decl, ext_decl, enum_decl etc
-          if tag_node.level_spaces_length == node_below_top_level.level_spaces_length #insert only if this tage is sibling of the tag just below top level 
+          if tag_node.level_spaces_length == node_below_top_level.level_spaces_length #insert only if this tag is sibling of the tag just below top level 
             num_nodes_popped = update_tag_hierarchy(tag_node, tag_stack)
             second_level_tag_node_created = true 
             currently_seeing_tag = tag_node.tag_name   
-            Logger.log_message "-----second_level_tag_node_created: #{currently_seeing_tag}------\n\n"   
+            Logger.log_message "-----second_level_tag_node_created: #{currently_seeing_tag}----#{tag_node.tag_name}-----#{tag_node.level_spaces_length}-----#{node_below_top_level.level_spaces_length}----#{node_below_top_level.tag_name}------\n\n"   
             access_level_private = false #reset these values whenever a top level node is created as these will not be specified for all cases so cannot deterministically say when its value change
             modifiers_private = false
           else
             num_nodes_popped = update_tag_hierarchy(tag_node, tag_stack)
-            Logger.log_message "-----child level created------\n\n" 
+            Logger.log_message "-----child level created-----#{tag_node.tag_name}-----#{tag_node.level_spaces_length}-----#{node_below_top_level.level_spaces_length}----#{node_below_top_level.tag_name}------\n\n" 
           end  
         end
       end
@@ -111,62 +110,19 @@ class ASTHierarchyCreator
         maybe_singleton, maybe_singleton_file_line = two_line_singleton(maybe_singleton, maybe_singleton_file_line, file_line, current_node, access_level_private, modifiers_private, currently_seeing_tag, tag_stack)
 
         single_line_singleton(file_line, current_node)
-        
-        if can_add_dependency(access_level_private, modifiers_private, currently_seeing_tag, file_line, tag_stack)
+      
+        #subclass, protocol, extension name - this works as the subclass will be updated only if it was nil before.. 
+        current_node, subclass_name_found = subclass_name(file_line, currently_seeing_tag, current_node, dependency)
 
-            #subclass, protocol, extension name - this works as the subclass will be updated only if it was nil before.. 
-            if (file_line.include? "name:" and currently_seeing_tag.include? "_decl") or
-              (file_line.include? "type:" and currently_seeing_tag.include? "ext_decl")
-              if current_node.subclass.length == 0
-                name_match = subclass_name_regex.match(file_line) #extract subclass name 
-                name = name_match[0]
-
-                #find the node with the name and make it current, so that we avoid duplicates
-                existing_subclass_or_extension_node = find_node(name, dependency)
-                if existing_subclass_or_extension_node == nil
-                  current_node.subclass = name
-                  Logger.log_message "-----NO existing_subclass_or_extension_node : #{current_node}--AAAAA--subclass: #{current_node.subclass}----"
-                else
-                  dependency.pop #remove the node created at _decl above
-                  current_node = existing_subclass_or_extension_node
-                  Logger.log_message "--------existing_subclass_or_extension_node : #{current_node.subclass}----dependency: #{current_node.dependency.count}--"
-                end
-              end
-            #superclass or protocol name
-            elsif file_line.include? "parent_types:" and currently_seeing_tag.include? "_decl" #check for -decl just to be safe
-              if current_node.superclass_or_protocol.length == 0
-                current_node.add_polymorphism(file_line)
-              end
-
-            #for all other types of decl or lines, check for words beginning with capital and those are all dependencies 
-            #property in class 
-            # var_decl <range: 16:5-16:42>
-            #   pattern: statusDescription: Optional<String>
-            #   pattern: accountNames: Optional<Array<AccountNames>>
-            # iboutlet
-            # var_decl <range: 39:5-39:60>
-            #   attributes: `@IBOutlet`
-            #   modifiers: public weak
-            #   pattern: buttonBarView: ImplicitlyUnwrappedOptional<ButtonBarView>
-            # var_decl <range: 35:5-35:73>
-            #   modifiers: public
-            #   pattern: buttonBarItemSpec: ImplicitlyUnwrappedOptional<ButtonBarItemSpec<ButtonBarCellType>>
-            # const_decl <range: 31:5-31:50>
-            #   modifiers: private
-            #   pattern: scheduler: RateAndReviewScheduler
-            # func_decl <range: 5-217:6>
-            #   name: collectionView
-            #   modifiers: open
-            #   parameters:
-            #   0: _ collectionView: UICollectionView
-            #   1: layout collectionViewLayout: UICollectionViewLayout
-            #   2: sizeForItemAtIndexPath indexPath: IndexPath
-            #   return_type: `CGSize`
-            else
-                #find all words starting with Capital letter and add it as dependency
-                current_node.add_dependency(file_line, true)
+        #superclass or protocol name
+        if subclass_name_found == false
+          current_node, superclass_or_protocol_name_found = superclass_or_protocol_name(file_line, currently_seeing_tag, current_node)
+          if superclass_or_protocol_name_found == false 
+            #add other regular dependencies ie. all words starting with Capital letter
+            if can_add_dependency(access_level_private, modifiers_private, currently_seeing_tag, file_line, tag_stack)
+              current_node = add_regular_dependencies(file_line, current_node)
             end
-
+          end
         end
 
       end
@@ -174,6 +130,75 @@ class ASTHierarchyCreator
 
     return dependency
 
+  end
+
+  def add_regular_dependencies(file_line, current_node)
+    #for all other types of decl or lines, check for words beginning with capital and those are all dependencies 
+    #property in class 
+    # var_decl <range: 16:5-16:42>
+    #   pattern: statusDescription: Optional<String>
+    #   pattern: accountNames: Optional<Array<AccountNames>>
+    # iboutlet
+    # var_decl <range: 39:5-39:60>
+    #   attributes: `@IBOutlet`
+    #   modifiers: public weak
+    #   pattern: buttonBarView: ImplicitlyUnwrappedOptional<ButtonBarView>
+    # var_decl <range: 35:5-35:73>
+    #   modifiers: public
+    #   pattern: buttonBarItemSpec: ImplicitlyUnwrappedOptional<ButtonBarItemSpec<ButtonBarCellType>>
+    # const_decl <range: 31:5-31:50>
+    #   modifiers: private
+    #   pattern: scheduler: RateAndReviewScheduler
+    # func_decl <range: 5-217:6>
+    #   name: collectionView
+    #   modifiers: open
+    #   parameters:
+    #   0: _ collectionView: UICollectionView
+    #   1: layout collectionViewLayout: UICollectionViewLayout
+    #   2: sizeForItemAtIndexPath indexPath: IndexPath
+    #   return_type: `CGSize`
+    #find all words starting with Capital letter and add it as dependency
+    current_node.add_dependency(file_line, true)
+    return current_node
+  end
+
+  def superclass_or_protocol_name(file_line, currently_seeing_tag, current_node)
+    superclass_or_protocol_name_found = false
+    if current_node.superclass_or_protocol.length == 0
+      if file_line.include? "parent_types:" and currently_seeing_tag.include? "_decl" #check for _decl just to be safe
+        current_node.add_polymorphism(file_line)
+        superclass_or_protocol_name_found = true
+      end
+    end
+    return current_node, superclass_or_protocol_name_found
+  end
+
+  def subclass_name(file_line, currently_seeing_tag, current_node, dependency)
+    subclass_name_found = false
+    if current_node.subclass.length == 0
+
+      subclass_name_regex = /(?<=:\s)(.*)/ #in sentence with name:, get the subclass name from the : to end of sentence
+
+      if (file_line.include? "name:" and currently_seeing_tag.include? "_decl") or
+        (file_line.include? "type:" and currently_seeing_tag.include? "ext_decl")
+        name_match = subclass_name_regex.match(file_line) #extract subclass name 
+        name = name_match[0]
+        subclass_name_found = true
+
+        #find the node with the name and make it current, so that we avoid duplicates
+        existing_subclass_or_extension_node = find_node(name, dependency)
+        if existing_subclass_or_extension_node == nil
+          current_node.subclass = name
+          Logger.log_message "-----NO existing_subclass_or_extension_node : #{current_node}--AAAAA--subclass: #{current_node.subclass}----"
+        else
+          dependency.pop #remove the node created at _decl above
+          current_node = existing_subclass_or_extension_node
+          Logger.log_message "--------existing_subclass_or_extension_node : #{current_node.subclass}----dependency: #{current_node.dependency.count}--"
+        end
+      end
+    end
+
+    return current_node, subclass_name_found
   end
 
   def check_if_private_access(file_line, access_level_private, modifiers_private)
