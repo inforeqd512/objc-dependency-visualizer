@@ -130,40 +130,9 @@ class ASTHierarchyCreator
           end
         end
 
-        #identify singletons and set them up as dependencies
-        #Singletons appear in AST as the following lines. First line contains the class name. Second line contains the fact that singleton is used
-        #   kind: `identifier`, identifier: `TouchIDManagerFactory`
-        # identifier: `sharedInstance`
-
-        #    init_decl <range: xxx.swift>
-        # 3: urlOpener: URLOpener = UIApplication.shared
-
-        # func_decl <range: xxx.swift:14:5-17:6>
-        # 0: for bundle: Bundle = Bundle.main
-
-        # func_decl <range: /Users/mistrys/Documents/Development/-Next/mobile-ios-github/Frameworks/UIKit/Sources/CGFloat+.swift:9:5-11:6>
-        # parameters:
-        # 0: displayScale: CGFloat = UIScreen.main.scale
         maybe_singleton, maybe_singleton_file_line = two_line_singleton(maybe_singleton, maybe_singleton_file_line, file_line, current_node, access_level_private, modifiers_private, currently_seeing_tag)
 
-        definitely_singleton = ""
-        if /[a-zA-Z]\.main/.match(file_line) != nil
-          match_text = /(?<type_name>\w*.main)/.match(file_line)
-          definitely_singleton = match_text[:type_name]
-
-        elsif /[a-zA-Z]\.shared/.match(file_line) != nil
-          match_text = /(?<type_name>\w*.shared)/.match(file_line)
-          definitely_singleton = match_text[:type_name]
-          Logger.log_message "-----definitely_singleton: #{definitely_singleton}----"
-
-        end
-
-        if definitely_singleton.length > 0
-          #add the singleton if it was found
-          Logger.log_message "-----definitely_singleton: #{definitely_singleton}-ADDED---"
-          current_node.add_dependency(definitely_singleton)
-          definitely_singleton = ""
-        end
+        single_line_singleton(file_line, current_node)
         
         if can_add_dependency(access_level_private, modifiers_private, currently_seeing_tag, file_line)
 
@@ -229,47 +198,82 @@ class ASTHierarchyCreator
 
   end
 
+  def single_line_singleton(file_line, current_node)
+    #identify singletons and set them up as dependencies
+    #Singletons appear in AST in two ways. This is the second way
+
+    #    init_decl <range: xxx.swift>
+    # 3: urlOpener: URLOpener = UIApplication.shared
+
+    # func_decl <range: xxx.swift:14:5-17:6>
+    # 0: for bundle: Bundle = Bundle.main
+
+    # func_decl <range: /Users/mistrys/Documents/Development/-Next/mobile-ios-github/Frameworks/UIKit/Sources/CGFloat+.swift:9:5-11:6>
+    # parameters:
+    # 0: displayScale: CGFloat = UIScreen.main.scale
+    definitely_singleton = ""
+    if /[a-zA-Z]\.main/.match(file_line) != nil
+      match_text = /(?<type_name>\w*.main)/.match(file_line)
+      definitely_singleton = match_text[:type_name]
+
+    elsif /[a-zA-Z]\.shared/.match(file_line) != nil
+      match_text = /(?<type_name>\w*.shared)/.match(file_line)
+      definitely_singleton = match_text[:type_name]
+      Logger.log_message "-----definitely_singleton: #{definitely_singleton}----"
+
+    end
+
+    if definitely_singleton.length > 0
+      #add the singleton if it was found
+      Logger.log_message "-----definitely_singleton: #{definitely_singleton}-ADDED-SINGLE LINE SINGLETON--"
+      current_node.add_dependency(definitely_singleton)
+      definitely_singleton = ""
+    end
+  end
+
   def two_line_singleton(maybe_singleton, maybe_singleton_file_line, file_line, current_node, access_level_private, modifiers_private, currently_seeing_tag)
-        #identify singletons and set them up as dependencies
-        #Singletons appear in AST as the following lines. First line contains the class name. Second line contains the fact that singleton is used
-        #   kind: `identifier`, identifier: `TouchIDManagerFactory`
-        # identifier: `sharedInstance`
+    #Singletons appear in AST in two ways. This is the first way
 
-        definitely_singleton = ""
-        singleton_not_identified = false
-        if /identifier:\s`[A-Z].*`/.match(file_line) != nil
-          match_text = /identifier:\s`(?<type_name>[A-Z].*)`/.match(file_line)
-          maybe_singleton_file_line = file_line
-          maybe_singleton = match_text[:type_name]
+    #identify singletons and set them up as dependencies
+    #Singletons appear in AST as the following lines. First line contains the class name. Second line contains the fact that singleton is used
+    #   kind: `identifier`, identifier: `TouchIDManagerFactory`
+    # identifier: `sharedInstance`
 
-        elsif (/identifier: `shared`/.match(file_line) != nil) and 
-              (maybe_singleton.length > 0)
-          definitely_singleton = maybe_singleton + ".shared"
+    definitely_singleton = ""
+    singleton_not_identified = false
+    if /identifier:\s`[A-Z].*`/.match(file_line) != nil
+      match_text = /identifier:\s`(?<type_name>[A-Z].*)`/.match(file_line)
+      maybe_singleton_file_line = file_line
+      maybe_singleton = match_text[:type_name]
 
-        elsif (/identifier: `main`/.match(file_line) != nil) and 
-              (maybe_singleton.length > 0)
-          definitely_singleton = maybe_singleton + ".main"
-      
-        else
-          singleton_not_identified = true
-        end
+    elsif (/identifier: `shared`/.match(file_line) != nil) and 
+          (maybe_singleton.length > 0)
+      definitely_singleton = maybe_singleton + ".shared"
 
-        if singleton_not_identified == true
-          if can_add_dependency(access_level_private, modifiers_private, currently_seeing_tag, maybe_singleton_file_line)
-            current_node.add_dependency(maybe_singleton_file_line, true)
-          end
-          maybe_singleton = ""
-          maybe_singleton_file_line = ""
+    elsif (/identifier: `main`/.match(file_line) != nil) and 
+          (maybe_singleton.length > 0)
+      definitely_singleton = maybe_singleton + ".main"
+  
+    else
+      singleton_not_identified = true
+    end
 
-        elsif definitely_singleton.length > 0
-          #add the singleton if it was found
-          Logger.log_message "-----definitely_singleton: #{definitely_singleton}-ADDED TWO LINE SINGLETON---"
-          current_node.add_dependency(definitely_singleton)
-          maybe_singleton = ""
-          maybe_singleton_file_line = ""
-        end
+    if singleton_not_identified == true
+      if can_add_dependency(access_level_private, modifiers_private, currently_seeing_tag, maybe_singleton_file_line)
+        current_node.add_dependency(maybe_singleton_file_line, true)
+      end
+      maybe_singleton = ""
+      maybe_singleton_file_line = ""
 
-        return maybe_singleton, maybe_singleton_file_line
+    elsif definitely_singleton.length > 0
+      #add the singleton if it was found
+      Logger.log_message "-----definitely_singleton: #{definitely_singleton}-ADDED TWO LINE SINGLETON---"
+      current_node.add_dependency(definitely_singleton)
+      maybe_singleton = ""
+      maybe_singleton_file_line = ""
+    end
+
+    return maybe_singleton, maybe_singleton_file_line
   end
 
   def can_add_dependency(access_level_private, modifiers_private, currently_seeing_tag, file_line)
