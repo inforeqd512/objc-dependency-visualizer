@@ -355,8 +355,10 @@ class SwiftTagHierarchyNode
   end
 
   def extract_tag_level (tag_line)
-
-    level_space_regex = /(\s*)(?=[a-z])/ # extracts spaces in the beginning of sentence like import_decl <range:
+    # extracts spaces in the beginning of sentence like import_decl <range:
+    #        2: binary_op_expr <range: xxx.swift:63:13-63:58>
+    #      name: journal
+    level_space_regex = /(\s*)(?=[a-z0-9])/ 
     level_spaces_match = level_space_regex.match(tag_line)
     level_spaces = level_spaces_match[0]
     level_spaces_length = level_spaces.length
