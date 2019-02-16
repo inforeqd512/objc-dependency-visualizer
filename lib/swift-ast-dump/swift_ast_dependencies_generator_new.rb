@@ -144,39 +144,7 @@ class ASTHierarchyCreator
         # func_decl <range: /Users/mistrys/Documents/Development/-Next/mobile-ios-github/Frameworks/UIKit/Sources/CGFloat+.swift:9:5-11:6>
         # parameters:
         # 0: displayScale: CGFloat = UIScreen.main.scale
-        definitely_singleton = ""
-        singleton_not_identified = false
-        if /identifier:\s`[A-Z].*`/.match(file_line) != nil
-          match_text = /identifier:\s`(?<type_name>[A-Z].*)`/.match(file_line)
-          maybe_singleton_file_line = file_line
-          maybe_singleton = match_text[:type_name]
-
-        elsif (/identifier: `shared`/.match(file_line) != nil) and 
-              (maybe_singleton.length > 0)
-          definitely_singleton = maybe_singleton + ".shared"
-
-        elsif (/identifier: `main`/.match(file_line) != nil) and 
-              (maybe_singleton.length > 0)
-          definitely_singleton = maybe_singleton + ".main"
-      
-        else
-          singleton_not_identified = true
-        end
-
-        if singleton_not_identified == true
-          if can_add_dependency(access_level_private, modifiers_private, currently_seeing_tag, maybe_singleton_file_line)
-            current_node.add_dependency(maybe_singleton_file_line, true)
-          end
-          maybe_singleton = ""
-          maybe_singleton_file_line = ""
-
-        elsif definitely_singleton.length > 0
-          #add the singleton if it was found
-          Logger.log_message "-----definitely_singleton: #{definitely_singleton}-ADDED---"
-          current_node.add_dependency(definitely_singleton)
-          maybe_singleton = ""
-          maybe_singleton_file_line = ""
-        end
+        maybe_singleton, maybe_singleton_file_line = two_line_singleton(maybe_singleton, maybe_singleton_file_line, file_line, current_node, access_level_private, modifiers_private, currently_seeing_tag)
 
         definitely_singleton = ""
         if /[a-zA-Z]\.main/.match(file_line) != nil
@@ -259,6 +227,49 @@ class ASTHierarchyCreator
 
     return dependency
 
+  end
+
+  def two_line_singleton(maybe_singleton, maybe_singleton_file_line, file_line, current_node, access_level_private, modifiers_private, currently_seeing_tag)
+        #identify singletons and set them up as dependencies
+        #Singletons appear in AST as the following lines. First line contains the class name. Second line contains the fact that singleton is used
+        #   kind: `identifier`, identifier: `TouchIDManagerFactory`
+        # identifier: `sharedInstance`
+
+        definitely_singleton = ""
+        singleton_not_identified = false
+        if /identifier:\s`[A-Z].*`/.match(file_line) != nil
+          match_text = /identifier:\s`(?<type_name>[A-Z].*)`/.match(file_line)
+          maybe_singleton_file_line = file_line
+          maybe_singleton = match_text[:type_name]
+
+        elsif (/identifier: `shared`/.match(file_line) != nil) and 
+              (maybe_singleton.length > 0)
+          definitely_singleton = maybe_singleton + ".shared"
+
+        elsif (/identifier: `main`/.match(file_line) != nil) and 
+              (maybe_singleton.length > 0)
+          definitely_singleton = maybe_singleton + ".main"
+      
+        else
+          singleton_not_identified = true
+        end
+
+        if singleton_not_identified == true
+          if can_add_dependency(access_level_private, modifiers_private, currently_seeing_tag, maybe_singleton_file_line)
+            current_node.add_dependency(maybe_singleton_file_line, true)
+          end
+          maybe_singleton = ""
+          maybe_singleton_file_line = ""
+
+        elsif definitely_singleton.length > 0
+          #add the singleton if it was found
+          Logger.log_message "-----definitely_singleton: #{definitely_singleton}-ADDED TWO LINE SINGLETON---"
+          current_node.add_dependency(definitely_singleton)
+          maybe_singleton = ""
+          maybe_singleton_file_line = ""
+        end
+
+        return maybe_singleton, maybe_singleton_file_line
   end
 
   def can_add_dependency(access_level_private, modifiers_private, currently_seeing_tag, file_line)
