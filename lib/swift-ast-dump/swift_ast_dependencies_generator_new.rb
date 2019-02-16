@@ -110,25 +110,7 @@ class ASTHierarchyCreator
 
       if current_node != nil # swift file may have more than one top level nodes?
 
-        if file_line.include? "access_level:"
-          if file_line.include? "access_level: private"
-            Logger.log_message "-----access_level: private----"
-            access_level_private = true
-          else
-            Logger.log_message "--NOT---access_level: private----"
-            access_level_private = false
-          end
-        end
-
-        if file_line.include? "modifiers:"
-          if file_line.include? "modifiers: private"
-            Logger.log_message "-----modifiers: private----"
-            modifiers_private = true
-          else
-            Logger.log_message "--NOT---modifiers: private----"
-            modifiers_private = false
-          end
-        end
+        access_level_private, modifiers_private = check_if_private_access(file_line, access_level_private, modifiers_private)
 
         maybe_singleton, maybe_singleton_file_line = two_line_singleton(maybe_singleton, maybe_singleton_file_line, file_line, current_node, access_level_private, modifiers_private, currently_seeing_tag)
 
@@ -196,6 +178,30 @@ class ASTHierarchyCreator
 
     return dependency
 
+  end
+
+  def check_if_private_access(file_line, access_level_private, modifiers_private)
+    if file_line.include? "access_level:"
+      if file_line.include? "access_level: private"
+        Logger.log_message "-----access_level: private----"
+        access_level_private = true
+      else
+        Logger.log_message "--NOT---access_level: private----"
+        access_level_private = false
+      end
+    end
+
+    if file_line.include? "modifiers:"
+      if file_line.include? "modifiers: private"
+        Logger.log_message "-----modifiers: private----"
+        modifiers_private = true
+      else
+        Logger.log_message "--NOT---modifiers: private----"
+        modifiers_private = false
+      end
+    end
+
+    return access_level_private, modifiers_private
   end
 
   def single_line_singleton(file_line, current_node)
