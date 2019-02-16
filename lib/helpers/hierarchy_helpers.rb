@@ -22,6 +22,15 @@ class Stack
     return @data.last
   end
 
+  def currently_seeing_tag
+    last_element = peek_last
+    if last_element != nil
+      return last_element.tag_name
+    else
+      return nil
+    end
+  end
+
   def node_just_below_top_level
     if @data.length > 1 #if there are atleast 2 elements in the array
       return @data[1]

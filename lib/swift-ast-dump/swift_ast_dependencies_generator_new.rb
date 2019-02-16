@@ -112,11 +112,11 @@ class ASTHierarchyCreator
 
         access_level_private, modifiers_private = check_if_private_access(file_line, access_level_private, modifiers_private)
 
-        maybe_singleton, maybe_singleton_file_line = two_line_singleton(maybe_singleton, maybe_singleton_file_line, file_line, current_node, access_level_private, modifiers_private, currently_seeing_tag)
+        maybe_singleton, maybe_singleton_file_line = two_line_singleton(maybe_singleton, maybe_singleton_file_line, file_line, current_node, access_level_private, modifiers_private, currently_seeing_tag, tag_stack)
 
         single_line_singleton(file_line, current_node)
         
-        if can_add_dependency(access_level_private, modifiers_private, currently_seeing_tag, file_line)
+        if can_add_dependency(access_level_private, modifiers_private, currently_seeing_tag, file_line, tag_stack)
 
             #subclass, protocol, extension name - this works as the subclass will be updated only if it was nil before.. 
             if (file_line.include? "name:" and currently_seeing_tag.include? "_decl") or
@@ -237,7 +237,7 @@ class ASTHierarchyCreator
     end
   end
 
-  def two_line_singleton(maybe_singleton, maybe_singleton_file_line, file_line, current_node, access_level_private, modifiers_private, currently_seeing_tag)
+  def two_line_singleton(maybe_singleton, maybe_singleton_file_line, file_line, current_node, access_level_private, modifiers_private, currently_seeing_tag, tag_stack)
     #Singletons appear in AST in two ways. This is the first way
 
     #identify singletons and set them up as dependencies
@@ -265,7 +265,7 @@ class ASTHierarchyCreator
     end
 
     if singleton_not_identified == true
-      if can_add_dependency(access_level_private, modifiers_private, currently_seeing_tag, maybe_singleton_file_line)
+      if can_add_dependency(access_level_private, modifiers_private, currently_seeing_tag, maybe_singleton_file_line, tag_stack)
         current_node.add_dependency(maybe_singleton_file_line, true)
       end
       maybe_singleton = ""
@@ -282,7 +282,7 @@ class ASTHierarchyCreator
     return maybe_singleton, maybe_singleton_file_line
   end
 
-  def can_add_dependency(access_level_private, modifiers_private, currently_seeing_tag, file_line)
+  def can_add_dependency(access_level_private, modifiers_private, currently_seeing_tag, file_line, tag_stack)
     if  /<range:/.match(file_line) != nil #We need to consider lines that are ONLY not _decl ones 
       return false
     end
@@ -294,7 +294,7 @@ class ASTHierarchyCreator
     if modifiers_private == true
       return false
     end
-    #ignore enum_decl
+    #ignore enum_decl even for current top level tag
     if currently_seeing_tag.include? "enum_decl"
       return false
     end
@@ -304,6 +304,10 @@ class ASTHierarchyCreator
     #ignore tags where the place where the dependency would have started is a small case so it's not a dependency eg identifier: `[a-z]
     #ignore tags with singleton as it's already taken care of above eg identifier: `shared`|identifier: `main`/
     if file_line.match(/raw_text:|literal:|method_name:|attributes:|identifier: `[a-z]|name: `[a-z]/) != nil
+      return false
+    end
+    #ignore enum_decl even for currently seeing child tag
+    if tag_stack.currently_seeing_tag().include? "enum_decl"
       return false
     end
     return true
