@@ -56,9 +56,9 @@ class ASTHierarchyCreator
     subclass_name_regex = /(?<=:\s)(.*)/ #in sentence with name:, get the subclass name from the : to end of sentence
     maybe_singleton = ""
     maybe_singleton_file_line = ""
-    definitely_singleton = ""
     currently_seeing_tag = ""
     access_level_private = false
+    modifiers_private = false
 
     #class, protocol, property, category, return type, method parameter type, enum, struct
     ast_tags_in_file(filename) do |file_line|
@@ -90,6 +90,8 @@ class ASTHierarchyCreator
             second_level_tag_node_created = true 
             currently_seeing_tag = tag_node.tag_name   
             Logger.log_message "-----second_level_tag_node_created: #{currently_seeing_tag}------\n\n"   
+            access_level_private = false #reset these values whenever a top level node is created as these will not be specified for all cases so cannot deterministically say when its value change
+            modifiers_private = false
           else
             num_nodes_popped = update_tag_hierarchy(tag_node, tag_stack)
             Logger.log_message "-----child level created------\n\n" 
@@ -108,6 +110,26 @@ class ASTHierarchyCreator
 
       if current_node != nil # swift file may have more than one top level nodes?
 
+        if file_line.include? "access_level:"
+          if file_line.include? "access_level: private"
+            Logger.log_message "-----access_level: private----"
+            access_level_private = true
+          else
+            Logger.log_message "--NOT---access_level: private----"
+            access_level_private = false
+          end
+        end
+
+        if file_line.include? "modifiers:"
+          if file_line.include? "modifiers: private"
+            Logger.log_message "-----modifiers: private----"
+            modifiers_private = true
+          else
+            Logger.log_message "--NOT---modifiers: private----"
+            modifiers_private = false
+          end
+        end
+
         #identify singletons and set them up as dependencies
         #Singletons appear in AST as the following lines. First line contains the class name. Second line contains the fact that singleton is used
         #   kind: `identifier`, identifier: `TouchIDManagerFactory`
@@ -122,7 +144,8 @@ class ASTHierarchyCreator
         # func_decl <range: /Users/mistrys/Documents/Development/-Next/mobile-ios-github/Frameworks/UIKit/Sources/CGFloat+.swift:9:5-11:6>
         # parameters:
         # 0: displayScale: CGFloat = UIScreen.main.scale
-  
+        definitely_singleton = ""
+        singleton_not_identified = false
         if /identifier:\s`[A-Z].*`/.match(file_line) != nil
           match_text = /identifier:\s`(?<type_name>[A-Z].*)`/.match(file_line)
           maybe_singleton_file_line = file_line
@@ -131,47 +154,51 @@ class ASTHierarchyCreator
         elsif (/identifier: `shared`/.match(file_line) != nil) and 
               (maybe_singleton.length > 0)
           definitely_singleton = maybe_singleton + ".shared"
-          maybe_singleton = ""
 
         elsif (/identifier: `main`/.match(file_line) != nil) and 
               (maybe_singleton.length > 0)
           definitely_singleton = maybe_singleton + ".main"
-          maybe_singleton = ""
-        
-        elsif maybe_singleton.length > 0 #if the identifier tag was seen, but its not identified to be a singleton then forget about it as possible singleton
-          if !currently_seeing_tag.include? "enum_decl" #ignore enum when adding non-singleton dependencies
+      
+        else
+          singleton_not_identified = true
+        end
+
+        if singleton_not_identified == true
+          if can_add_dependency(access_level_private, modifiers_private, currently_seeing_tag, maybe_singleton_file_line)
             current_node.add_dependency(maybe_singleton_file_line, true)
           end
           maybe_singleton = ""
           maybe_singleton_file_line = ""
+
+        elsif definitely_singleton.length > 0
+          #add the singleton if it was found
+          Logger.log_message "-----definitely_singleton: #{definitely_singleton}-ADDED---"
+          current_node.add_dependency(definitely_singleton)
+          maybe_singleton = ""
+          maybe_singleton_file_line = ""
         end
 
-        if /[a-z]\.main/.match(file_line) != nil
+        definitely_singleton = ""
+        if /[a-zA-Z]\.main/.match(file_line) != nil
           match_text = /(?<type_name>\w*.main)/.match(file_line)
           definitely_singleton = match_text[:type_name]
 
-        elsif /[a-z]\.shared/.match(file_line) != nil
+        elsif /[a-zA-Z]\.shared/.match(file_line) != nil
           match_text = /(?<type_name>\w*.shared)/.match(file_line)
           definitely_singleton = match_text[:type_name]
+          Logger.log_message "-----definitely_singleton: #{definitely_singleton}----"
 
         end
 
-        if file_line.include? "access_level: private"
-          Logger.log_message "-----access_level: private----"
-          access_level_private = true
-        else
-          access_level_private = false
+        if definitely_singleton.length > 0
+          #add the singleton if it was found
+          Logger.log_message "-----definitely_singleton: #{definitely_singleton}-ADDED---"
+          current_node.add_dependency(definitely_singleton)
+          definitely_singleton = ""
         end
-        # if (file_line.include? "access_level:" and currently_seeing_tag.include? "_decl") or
-        #    (file_line.include? "modifiers:" and currently_seeing_tag.include? "_decl")
-
-        # end
         
-        #only consider non private access_level 
-        if access_level_private = false
-          #ignore enum_decl
-          if !currently_seeing_tag.include? "enum_decl"
-          
+        if can_add_dependency(access_level_private, modifiers_private, currently_seeing_tag, file_line)
+
             #subclass, protocol, extension name - this works as the subclass will be updated only if it was nil before.. 
             if (file_line.include? "name:" and currently_seeing_tag.include? "_decl") or
               (file_line.include? "type:" and currently_seeing_tag.include? "ext_decl")
@@ -220,24 +247,11 @@ class ASTHierarchyCreator
             #   1: layout collectionViewLayout: UICollectionViewLayout
             #   2: sizeForItemAtIndexPath indexPath: IndexPath
             #   return_type: `CGSize`
-            elsif is_swift_tag.match(file_line) == nil #when <range: is NOT present (means its NOT a tag)
-              #ignore tags where the word will begin with Capital letter but it does not mean its a dependency
-              #              kind: `string`, raw_text: `"UserAgentAppName"`
-              #ignore tags where you will definitely not find any dependencies eg literal:|method_name:|attributes:|
-              #ignore tags where the place where the dependency would have started is a small case so it's not a dependency eg identifier: `[a-z]
-              #ignore tags with singleton as it's already taken care of above eg identifier: `shared`|identifier: `main`/
-              if file_line.match(/raw_text:|literal:|method_name:|attributes:|identifier: `[a-z]|name: `[a-z]|identifier: `shared`|identifier: `main`/) != nil
-                #ignore
-              elsif (definitely_singleton.length > 0)
-                #add the singleton if it was found
-                current_node.add_dependency(definitely_singleton)
-              elsif maybe_singleton.length == 0 #if its not being considered for singleton candidate, then add it else singleton logic will add it
+            else
                 #find all words starting with Capital letter and add it as dependency
                 current_node.add_dependency(file_line, true)
-              end
             end
 
-          end
         end
 
       end
@@ -247,6 +261,32 @@ class ASTHierarchyCreator
 
   end
 
+  def can_add_dependency(access_level_private, modifiers_private, currently_seeing_tag, file_line)
+    if  /<range:/.match(file_line) != nil #We need to consider lines that are ONLY not _decl ones 
+      return false
+    end
+    #only add dependency when non private access_level 
+    if access_level_private == true
+      return false
+    end
+    #if accesss level not private, only add dependency when  non private modifiers which are commonly found in child of access_level
+    if modifiers_private == true
+      return false
+    end
+    #ignore enum_decl
+    if currently_seeing_tag.include? "enum_decl"
+      return false
+    end
+    #ignore tags where the word will begin with Capital letter but it does not mean its a dependency
+    #              kind: `string`, raw_text: `"UserAgentAppName"`
+    #ignore tags where you will definitely not find any dependencies eg literal:|method_name:|attributes:|
+    #ignore tags where the place where the dependency would have started is a small case so it's not a dependency eg identifier: `[a-z]
+    #ignore tags with singleton as it's already taken care of above eg identifier: `shared`|identifier: `main`/
+    if file_line.match(/raw_text:|literal:|method_name:|attributes:|identifier: `[a-z]|name: `[a-z]/) != nil
+      return false
+    end
+    return true
+  end
 
   def ast_tags_in_file(filename)        
     $stderr.puts("--------ast_tags_in_file: #{filename}-------------")
