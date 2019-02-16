@@ -1,3 +1,5 @@
+require 'csv'
+
 class TreeSerializer
   attr_reader :dependency_tree
 
@@ -23,6 +25,8 @@ class TreeSerializer
     object_to_serialize = {}
 
     case output_format
+    when 'csv'
+      serialize_to_csv()
     when 'd3js'
       serialize_to_d3js(object_to_serialize)
     when 'sigmajs'
@@ -46,6 +50,13 @@ class TreeSerializer
       raise
     end
 
+  end
+
+  def serialize_to_csv()
+    node = @dependency_tree.node_csv_array #[{name: id}]
+    edge = @dependency_tree.edge_csv_array #[{source ,target, type}]
+    CSV.open("edge.csv", "wb") {|csv| edge.each {|hash| csv << [hash["source"], hash["target"], hash["type"]] } }
+    CSV.open("node.csv", "wb") {|csv| node.each {|key, value| csv << [value, key] }}
   end
 
   def serialize_to_d3js(object_to_serialize)

@@ -27,6 +27,13 @@ class DependencyTree
     @nodes = {}
     @edges = []
     @id_generator = 0
+
+    #csv 
+    @node_csv = {}
+    @edge_csv = []
+    @id_generator_csv = 0
+    @links_registry_csv = {}
+
   end
 
 
@@ -34,7 +41,14 @@ class DependencyTree
 
  
   #method to add source and dest details
+
   def add(source, dest, source_type = DependencyItemType::UNKNOWN, dest_type = DependencyItemType::UNKNOWN, link_type = DependencyItemType::UNKNOWN)
+
+    csv_display(source, dest, source_type, dest_type, link_type)
+    
+  end
+
+  def add_d3js(source, dest, source_type = DependencyItemType::UNKNOWN, dest_type = DependencyItemType::UNKNOWN, link_type = DependencyItemType::UNKNOWN)
 
     d3js_display(source, dest, source_type, dest_type, link_type)
     
@@ -45,6 +59,48 @@ class DependencyTree
     sigmajs_display_data(source, dest)
     
   end
+
+  #
+  #
+  #
+  # => CSV display
+  #
+  #
+  #
+  def csv_display(source, target, source_type, dest_type, link_type)
+    link_key = link_key(source, target)
+    if @links_registry_csv.key?(link_key)
+      #link exists so dont add link
+    else
+      if !@node_csv.key?(source)
+        @id_generator_csv = @id_generator_csv + 1
+        @node_csv[source] = @id_generator_csv
+      end
+  
+      if !@node_csv.key?(target)
+        @id_generator_csv = @id_generator_csv + 1
+        @node_csv[target] = @id_generator_csv
+      end
+
+      #add link
+      @links_registry_csv[link_key] = true
+      source_id = @node_csv[source]
+      target_id = @node_csv[target]
+      type = "Directed"
+  
+      edge = { "source" => source_id, "target" => target_id,  "type" => "Directed"}
+      @edge_csv.push(edge)
+    end
+  end
+
+  def node_csv_array
+    @node_csv
+  end
+
+  def edge_csv_array
+    @edge_csv
+  end
+
   #
   #
   #
