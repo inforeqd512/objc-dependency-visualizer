@@ -1,13 +1,15 @@
+  require 'helpers/logger'
+
   #get the list of swift files 
   def swift_files_list (folder_paths)
 
-    $stderr.puts "\n\n---------------swift_files_list---------------------"
+    Logger.log_message("\n\n---------------swift_files_list---------------------")
 
     swift_files_list = []
 
     folder_paths.each { |path|
-      $stderr.puts "-------#{path}-----"
-      $stderr.puts "find #{path} -name *.swift"
+      Logger.log_message("-------#{path}-----")
+      Logger.log_message("find #{path} -name *.swift")
       IO.popen("find #{path} -name *.swift") { |f|
         f.each do |line|
           swift_files_list << line
@@ -16,9 +18,9 @@
     }
 
     swift_files_list.each { |file|
-      $stderr.puts "----file: #{file}"
+      Logger.log_message("----file: #{file}")
     }
-    $stderr.puts "\n\n\n\n"
+    Logger.log_message("\n\n\n\n")
 
     return swift_files_list
     
@@ -27,10 +29,10 @@
   #get list of paths which should be used to find swift source files
   def swift_files_path_list (swift_files_path, swift_ignore_folders)
     
-    $stderr.puts "\n\n----swift_files_path_list-----"
+    Logger.log_message("\n\n----swift_files_path_list-----")
 
     paths = []
-    $stderr.puts "find #{swift_files_path} -type d -depth 1"
+    Logger.log_message("-------find #{swift_files_path} -type d -depth 1------")
     IO.popen("find #{swift_files_path} -type d -depth 1") { |f|
       f.each do |line|
         line.chomp!
@@ -51,9 +53,9 @@
     }
 
     paths.each { |item|
-      $stderr.puts "----#{item}"
+      Logger.log_message("----#{item}----")
     } 
-    $stderr.puts "\n\n\n\n"
+    Logger.log_message("\n\n\n\n")
 
     return paths
   end

@@ -1,5 +1,6 @@
 
 require 'set'
+require 'helpers/logger'
 
 class Stack
   def initialize
@@ -131,16 +132,16 @@ def find_node (name, node_list)
 end
 
 def print_hierarchy (dependency)
-  $stderr.puts "\n\n\n\n\n\n\n\n\n\n\n\n--------------print_hierarchy--------------------------"
+  Logger.log_message("\n\n\n\n\n\n\n\n\n\n\n\n--------------print_hierarchy--------------------------")
   dependency.each { |dependency_hierarchy_node|
 
-    $stderr.puts "--------------#{dependency_hierarchy_node}-----------------"
-    $stderr.puts "-----subclass: #{dependency_hierarchy_node.subclass}-----"
+    Logger.log_message("--------------#{dependency_hierarchy_node}-----------------")
+    Logger.log_message("-----subclass: #{dependency_hierarchy_node.subclass}-----")
     dependency_hierarchy_node.superclass_or_protocol.each { |node|
-      $stderr.puts "-----superclass_or_protocol: #{node}-----"
+      Logger.log_message("-----superclass_or_protocol: #{node}-----")
     }
     dependency_hierarchy_node.dependency.each { |node|
-      $stderr.puts "-----dependency: #{node}-----"
+      Logger.log_message("-----dependency: #{node}-----")
     }
   }
 end
@@ -159,12 +160,6 @@ def pair_source_dest (dependency)
     end
 
   }
-end
-
-class Logger
-  def self.log_message (message)
-    # $stderr.puts(message)
-  end
 end
 
 

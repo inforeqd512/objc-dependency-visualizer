@@ -341,7 +341,7 @@ class ASTHierarchyCreator
   end
 
   def ast_tags_in_file(filename)        
-    $stderr.puts("--------ast_tags_in_file: #{filename}-------------")
+    Logger.log_message("--------ast_tags_in_file: #{filename}-------------")
     IO.popen("/Users/mistrys/Documents/Development/swift-ast-fork/.build/release/swift-ast -dump-ast #{filename}") { |fd|
       fd.each { |line| yield line }
     }

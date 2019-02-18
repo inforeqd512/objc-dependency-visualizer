@@ -1,3 +1,4 @@
+require 'helpers/logger'
 
 class ObjcDependenciesGenerator
 
@@ -6,14 +7,14 @@ class ObjcDependenciesGenerator
   # http://www.thagomizer.com/blog/2016/05/06/algorithms-queues-and-stacks.html
   def generate_dependencies(object_files_dirs)
 
-    $stderr.puts "-----object_files_dirs: #{object_files_dirs}----"
+    Logger.log_message("-----object_files_dirs: #{object_files_dirs}----")
     @dependency = []
     dwarfdumpHierarchyCreator = DwarfdumpHierarchyCreator.new
 
     object_files_in_dir(object_files_dirs) do |filename|
 
       if filename.include?("Tests") == false #exclude file paths to Tests in frameworks or subfolders
-        $stderr.puts "\n\n----filename: #{filename}"
+        Logger.log_message("\n\n----filename: #{filename}")
         object_file_dependency_hierarchy = dwarfdumpHierarchyCreator.create_hierarchy(filename, @dependency)
         @dependency = object_file_dependency_hierarchy
 
@@ -31,9 +32,9 @@ class ObjcDependenciesGenerator
     dirs = Array(object_files_dirs)
 
     dirs.each do |dir|
-      $stderr.puts "------------START FIND-----------"
-      $stderr.puts "------object_files_in_dir dir: #{dir}--------"
-      $stderr.puts "find \"#{dir.chop}\" -name \"*.o\"" #chop to remove \n
+      Logger.log_message("------------START FIND-----------")
+      Logger.log_message("------object_files_in_dir dir: #{dir}--------")
+      Logger.log_message("find \"#{dir.chop}\" -name \"*.o\"") #chop to remove \n
 
       IO.popen("find \"#{dir.chop}\" -name \"*.o\"") { |f|
         f.each { |line| yield line }
@@ -65,17 +66,17 @@ class DwarfdumpHierarchyCreator
 
         # Finding the name in types
         # AT_type( {0x00000456} ( objc_object ) )
-        $stderr.puts file_line
+        Logger.log_message(file_line)
 
         if file_line.include? "TAG_"
           tag_node = TagHierarchyNode.new (file_line)
           num_nodes_popped = update_tag_hierarchy(tag_node, tag_stack)
-          # $stderr.puts "-----num_nodes_popped: #{num_nodes_popped}------"
+          Logger.log_message("-----num_nodes_popped: #{num_nodes_popped}------")
         end
 
         if file_line.include? "TAG_structure_type" 
           current_node = DependencyHierarchyNode.new
-          $stderr.puts "----new node created: #{current_node}----TAG_structure_type--"
+          Logger.log_message("----new node created: #{current_node}----TAG_structure_type--")
           dependency.push(current_node)
         end
 
@@ -87,17 +88,17 @@ class DwarfdumpHierarchyCreator
               #when ignoring the structure with name, remove the current node created at structure node from dependency as we want to ignore it and so nil the current node 
               dependency.pop
               current_node = nil
-              $stderr.puts "-----TAG_structure_type----AT_name----current_node = nil---"
+              Logger.log_message("-----TAG_structure_type----AT_name----current_node = nil---")
             else
               #find the node with the name and make it current
               found_node = find_node(name, dependency)
               if found_node != nil
                 dependency.pop #remove the node created at TAG_structure_type
-                $stderr.puts "--------TAG_structure_type-current_node : #{current_node}------"
+                Logger.log_message("--------TAG_structure_type-current_node : #{current_node}------")
                 current_node = found_node
-                $stderr.puts "--------TAG_structure_type-found current_node : #{current_node.subclass}----#{current_node.dependency.count}--"
+                Logger.log_message("--------TAG_structure_type-found current_node : #{current_node.subclass}----#{current_node.dependency.count}--")
               else
-                $stderr.puts "-----current_node: #{current_node}----subclass: #{name}----TAG_structure_type----AT_name---"
+                Logger.log_message("-----current_node: #{current_node}----subclass: #{name}----TAG_structure_type----AT_name---")
                 current_node.subclass = name
               end
             end
@@ -107,7 +108,7 @@ class DwarfdumpHierarchyCreator
             name_match = superclass_name_regex.match(file_line) #extract inheritance name between brackets
             name = name_match[0]
             current_node.add_polymorphism(name)
-            $stderr.puts "---------superclass: #{name}-----TAG_inheritance---AT_type---"
+            Logger.log_message("---------superclass: #{name}-----TAG_inheritance---AT_type---")
           end
 
           if file_line.include? "AT_type" and tag_stack.currently_seeing_tag.include? "TAG_APPLE_Property"
@@ -115,7 +116,7 @@ class DwarfdumpHierarchyCreator
             if name_match != nil # ignore  "id"
               name = name_match[0]
               current_node.add_dependency(name)
-              $stderr.puts "---------dependency: #{name}-----TAG_APPLE_Property---AT_type-"
+              Logger.log_message("---------dependency: #{name}-----TAG_APPLE_Property---AT_type-")
             end
           end
 
@@ -124,19 +125,19 @@ class DwarfdumpHierarchyCreator
             if name_match != nil # ignore  "SEL"
               name = name_match[0]
               if name.include?("(") #this is a method in a category
-                $stderr.puts "---------category name: #{name}-----TAG_subprogram---AT_name-"
+                Logger.log_message("---------category name: #{name}-----TAG_subprogram---AT_name-")
                 name_match = at_name_subprogram_name_category_regex.match(name) #extract class name from category name
                 name = name_match[0]
-                $stderr.puts "---------category for class name: #{name}-----TAG_subprogram---AT_name-"
+                Logger.log_message("---------category for class name: #{name}-----TAG_subprogram---AT_name-")
               end
               #find the node with the name and make it current
               found_node = find_node(name, dependency)
               if found_node != nil
-                $stderr.puts "---------current_node : #{current_node}------"
+                Logger.log_message("---------current_node : #{current_node}------")
                 current_node = found_node
-                $stderr.puts "---------found current_node : #{current_node.subclass}----#{current_node.dependency.count}--"
+                Logger.log_message("---------found current_node : #{current_node.subclass}----#{current_node.dependency.count}--")
               else
-                $stderr.puts "---------THIS SHOULD NOT HAPPEN------" #check when this happens whether we need to tackle this
+                Logger.log_message("---------THIS SHOULD NOT HAPPEN------") #check when this happens whether we need to tackle this
               end
             end
           end
@@ -146,7 +147,7 @@ class DwarfdumpHierarchyCreator
             if name_match != nil # ignore  "SEL"
               name = name_match[0]
               current_node.add_dependency(name)
-              $stderr.puts "---------dependency: #{name}----TAG_subprogram---AT_type---"
+              Logger.log_message("---------dependency: #{name}----TAG_subprogram---AT_type---")
             end
           end
 
@@ -157,7 +158,7 @@ class DwarfdumpHierarchyCreator
               if name.include?("const ") or name.include?("SEL") or name.include?("char") or name.include?("block_literal") #ignore self (const ViewController*)
                 #do nothing
               else
-                $stderr.puts "---------dependency: #{name}----TAG_subprogram---AT_type---"
+                Logger.log_message("---------dependency: #{name}----TAG_subprogram---AT_type---")
                 current_node.add_dependency(name)
               end
             end
@@ -192,7 +193,7 @@ class TagHierarchyNode
   attr_reader :level_spaces_length, :tag_name
 
   def initialize tag_line
-    $stderr.puts tag_line
+    Logger.log_message(tag_line)
     @level_spaces_length = extract_tag_level (tag_line)
     @tag_name = /TAG.*?\s/.match(tag_line)[0]
   end

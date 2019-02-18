@@ -1,4 +1,5 @@
 require 'set'
+require 'helpers/logger'
 
 def find_project_output_directory(derived_data_paths, project_prefix, project_suffix_pattern, target_names, verbose)
 
@@ -51,7 +52,7 @@ def find_project_output_directory(derived_data_paths, project_prefix, project_su
 
   paths_sorted_by_time = filtered_by_target_paths.sort_by { |f| File.ctime(f.chomp) }
 
-  $stderr.puts "\n\n------paths_sorted_by_time: #{paths_sorted_by_time}------"
+  Logger.log_message("\n\n------paths_sorted_by_time: #{paths_sorted_by_time}------")
 
   last_modified_dir = paths_sorted_by_time.last.chomp
   log.call "Last modifications were in\n#{last_modified_dir}\ndirectory at\n#{File.ctime(last_modified_dir)}"
@@ -67,7 +68,7 @@ def find_project_output_directory(derived_data_paths, project_prefix, project_su
   path.include?("Foundation.build") == false 
   }
 
-  $stderr.puts "\n\n------selected_build_dirs: #{selected_build_dirs}-----"
+  Logger.log_message("\n\n------selected_build_dirs: #{selected_build_dirs}-----")
   selected_build_dirs
 
 end
