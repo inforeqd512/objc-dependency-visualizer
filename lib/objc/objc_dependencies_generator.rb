@@ -168,11 +168,15 @@ class DwarfdumpHierarchyCreator
     #only do the below for objc files, ignore swift
     result = `dwarfdump #{filename.strip} | grep AT_language`
     match_language = /(?<=\(\s)(.*?)(?=\s\))/.match(result)
-    name = match_language[0]
-    if name.include?("DW_LANG_ObjC")
-      IO.popen("dwarfdump \"#{filename.strip}\" ") { |fd|
-        fd.each { |line| yield line }
-      }
+    # .debug_info contents:
+    # < EMPTY >
+    if match_language != nil
+      name = match_language[0]
+      if name.include?("DW_LANG_ObjC")
+        IO.popen("dwarfdump \"#{filename.strip}\" ") { |fd|
+          fd.each { |line| yield line }
+        }
+      end
     end
   end
 
