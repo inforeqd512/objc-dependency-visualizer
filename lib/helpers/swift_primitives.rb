@@ -316,6 +316,7 @@ end
 
 def is_valid_dest?(dest, exclusion_prefixes)
   return false if dest.nil?
+  return false if dest.start_with?("__") #ignore __block_literal
   return false unless /^(#{exclusion_prefixes})/.match(dest).nil?
   return false if is_primitive_swift_type?(dest)
   return false if is_filtered_swift_type?(dest)
