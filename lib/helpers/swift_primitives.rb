@@ -275,9 +275,10 @@ class SwiftPrimitives
       'URLRequest',
       'URLCache',
 #objc types
-      '__block_literal',
       'objc_class',
       'BOOL',
+      'ObjCBool',
+      'bool',
       'Log',
       'struct',
 #Project
