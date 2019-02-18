@@ -74,7 +74,7 @@ class DependencyTree
     else
       if !@node_csv.key?(source)
         @id_generator_csv = @id_generator_csv + 1
-        @node_csv[source] = @id_generator_csv
+        @node_csv[source] = @id_generator_csv #{source_class_name => id}
       end
   
       if !@node_csv.key?(target)
@@ -100,6 +100,22 @@ class DependencyTree
   def edge_csv_array
     @edge_csv
   end
+
+  def csv_filter (block = Proc.new)
+    nodes_to_remove = @node_csv.select { |key, value| block.call(key, DependencyItemType::UNKNOWN) == false} 
+    $stderr.puts "------------nodes_to_remove----------"
+    $stderr.puts "#{nodes_to_remove}\n\n\n\n"
+    nodes_to_remove.each { |key, value| @node_csv.delete(key) }
+    nodes_to_remove.each { |key, value| @edge_csv.delete_if { |edge| edge["source"] == value || edge["target"] == value } }
+    nodes_to_remove.each { |key, value| @links_registry_csv.delete_if { |link_key, value| link_key.include?(key) } }
+    $stderr.puts "------------node_csv----------"
+    $stderr.puts "#{@node_csv}\n\n\n\n"
+    $stderr.puts "------------edge_csv----------"
+    $stderr.puts "#{@edge_csv}\n\n\n\n"
+    $stderr.puts "------------links_registry_csv----------"
+    $stderr.puts "#{@links_registry_csv}\n\n\n\n"
+  end
+
 
   #
   #
@@ -160,16 +176,18 @@ class DependencyTree
     end
   end
 
-  def filter
-    @types_registry.each { |item, type|
-      next if yield item, type
-      @types_registry.delete(item)
-      @registry.delete(item)
-      selected_links = @links.select { |link| link[:source] != item && link[:dest] != item }
-      filtered_links = @links.select { |link| link[:source] == item || link[:dest] == item }
-      filtered_links.each { |link| remove_link_type(link) }
-      @links = selected_links
-    }
+  def filter (block = Proc.new)
+    # @types_registry.each { |item, type|
+    #   next if yield item, type
+    #   @types_registry.delete(item)
+    #   @registry.delete(item)
+    #   selected_links = @links.select { |link| link[:source] != item && link[:dest] != item }
+    #   filtered_links = @links.select { |link| link[:source] == item || link[:dest] == item }
+    #   filtered_links.each { |link| remove_link_type(link) }
+    #   @links = selected_links
+    # }
+
+    csv_filter(block)
   end
 
   def filter_links
