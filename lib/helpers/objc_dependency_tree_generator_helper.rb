@@ -51,8 +51,23 @@ def find_project_output_directory(derived_data_paths, project_prefix, project_su
 
   paths_sorted_by_time = filtered_by_target_paths.sort_by { |f| File.ctime(f.chomp) }
 
+  $stderr.puts "\n\n------paths_sorted_by_time: #{paths_sorted_by_time}------"
+
   last_modified_dir = paths_sorted_by_time.last.chomp
   log.call "Last modifications were in\n#{last_modified_dir}\ndirectory at\n#{File.ctime(last_modified_dir)}"
 
-  [last_modified_dir]
+  # [last_modified_dir]
+  
+  #exclude those frameworks which you're not interested in
+  selected_build_dirs = paths_sorted_by_time.select {|path| 
+  path.include?("DemoSupport.build") == false and
+  path.include?("DeveloperSupport.build") == false and
+  path.include?("TestSupport.build") == false and
+  path.include?("Pods.build") == false and 
+  path.include?("Foundation.build") == false 
+  }
+
+  $stderr.puts "\n\n------selected_build_dirs: #{selected_build_dirs}-----"
+  selected_build_dirs
+
 end
