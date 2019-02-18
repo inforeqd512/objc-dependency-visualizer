@@ -23,7 +23,10 @@ class SwiftAstDependenciesGeneratorNew
     swift_files_list = swift_files_list(folder_paths)
 
     swift_files_list.each { |filename| 
-      if filename.include?("Tests") == false #exclude file paths to Tests in frameworks or subfolders
+      if filename.include?("Tests") == false and #exclude file paths to Tests in frameworks or subfolders
+         filename.include?("DemoSupport") == false and
+         filename.include?("DeveloperSupport") == false and
+         filename.include?("TestSupport") == false
         swift_file_dependency_hierarchy = astHierarchyCreator.create_hierarchy(filename, @dependency)
         @dependency = swift_file_dependency_hierarchy
       end
