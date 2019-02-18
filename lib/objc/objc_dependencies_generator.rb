@@ -13,7 +13,18 @@ class ObjcDependenciesGenerator
 
     object_files_in_dir(object_files_dirs) do |filename|
 
-      if filename.include?("Tests") == false #exclude file paths to Tests in frameworks or subfolders
+      if filename.include?("Tests") == false and #exclude file paths to Tests in frameworks or subfolders
+        filename.include?("RXPromise") == false and
+        filename.include?("RXSettledResult") == false and
+        filename.include?("RXTimer") == false and
+        filename.include?("RCWS") == false and
+        filename.include?("ANZSAL") == false and
+        filename.include?("sal_") == false and
+        filename.include?("soap") == false and
+        filename.include?("wsaapi") == false and
+        filename.include?("OpenSSLThreading") == false and
+        filename.include?("SALServiceSession") == false and
+        filename.include?("NSDictionary+NameValuePair") == false
         Logger.log_message("\n\n----filename: #{filename}")
         object_file_dependency_hierarchy = dwarfdumpHierarchyCreator.create_hierarchy(filename, @dependency)
         @dependency = object_file_dependency_hierarchy
