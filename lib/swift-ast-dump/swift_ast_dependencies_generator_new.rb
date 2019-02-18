@@ -26,7 +26,8 @@ class SwiftAstDependenciesGeneratorNew
       if filename.include?("Tests") == false and #exclude file paths to Tests in frameworks or subfolders
          filename.include?("DemoSupport") == false and
          filename.include?("DeveloperSupport") == false and
-         filename.include?("TestSupport") == false
+         filename.include?("TestSupport") == false and
+         filename.include?("Foundation/") == false and
         swift_file_dependency_hierarchy = astHierarchyCreator.create_hierarchy(filename, @dependency)
         @dependency = swift_file_dependency_hierarchy
       end
