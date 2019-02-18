@@ -1,19 +1,19 @@
-require 'helpers/hierarchy_helpers'
 
 class ObjcDependenciesGenerator
 
   attr_reader :dependency
 
   # http://www.thagomizer.com/blog/2016/05/06/algorithms-queues-and-stacks.html
-  def generate_dependencies(object_files_dir)
+  def generate_dependencies(object_files_dirs)
 
+    $stderr.puts "-----object_files_dirs: #{object_files_dirs}----"
     @dependency = []
     dwarfdumpHierarchyCreator = DwarfdumpHierarchyCreator.new
 
-    object_files_in_dir(object_files_dir) do |filename|
+    object_files_in_dir(object_files_dirs) do |filename|
 
       if filename.include?("Tests") == false #exclude file paths to Tests in frameworks or subfolders
-        $stderr.puts "-----object_files_dir: #{object_files_dir}----filename: #{filename}"
+        $stderr.puts "\n\n----filename: #{filename}"
         object_file_dependency_hierarchy = dwarfdumpHierarchyCreator.create_hierarchy(filename, @dependency)
         @dependency = object_file_dependency_hierarchy
 
@@ -29,8 +29,13 @@ class ObjcDependenciesGenerator
 
   def object_files_in_dir(object_files_dirs)
     dirs = Array(object_files_dirs)
+
     dirs.each do |dir|
-      IO.popen("find \"#{dir}\" -name \"*.o\"") { |f|
+      $stderr.puts "------------START FIND-----------"
+      $stderr.puts "------object_files_in_dir dir: #{dir}--------"
+      $stderr.puts "find \"#{dir.chop}\" -name \"*.o\"" #chop to remove \n
+
+      IO.popen("find \"#{dir.chop}\" -name \"*.o\"") { |f|
         f.each { |line| yield line }
       }
     end  
@@ -165,6 +170,7 @@ class DwarfdumpHierarchyCreator
 
 
   def dwarfdump_tags_in_file(filename)
+    #TODO - only do dwarfdump once
     #only do the below for objc files, ignore swift
     result = `dwarfdump #{filename.strip} | grep AT_language`
     match_language = /(?<=\(\s)(.*?)(?=\s\))/.match(result)
