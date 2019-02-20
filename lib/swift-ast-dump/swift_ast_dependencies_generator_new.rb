@@ -60,8 +60,6 @@ class ASTHierarchyCreator
     maybe_singleton = ""
     maybe_singleton_file_line = ""
     currently_seeing_tag = ""
-    access_level_private = false
-    modifiers_private = false
 
     #class, protocol, property, category, return type, method parameter type, enum, struct
     ast_tags_in_file(filename) do |file_line|
@@ -86,8 +84,6 @@ class ASTHierarchyCreator
             second_level_tag_node_created = true 
             currently_seeing_tag = tag_node.tag_name   
             Logger.log_message "-----second_level_tag_node_created: #{currently_seeing_tag}----#{tag_node.tag_name}-----#{tag_node.level_spaces_length}-----#{node_below_top_level.level_spaces_length}----#{node_below_top_level.tag_name}------\n\n"   
-            access_level_private = false #reset these values whenever a top level node is created as these will not be specified for all cases so cannot deterministically say when its value change
-            modifiers_private = false
           else
             num_nodes_popped = update_tag_hierarchy(tag_node, tag_stack)
             Logger.log_message "-----child level created-----#{tag_node.tag_name}-----#{tag_node.level_spaces_length}-----#{node_below_top_level.level_spaces_length}----#{node_below_top_level.tag_name}------\n\n" 
@@ -108,10 +104,11 @@ class ASTHierarchyCreator
       if current_node != nil # swift file may have more than one top level nodes?
 
         #only map for when marked as 'public' as others are internal and of no concern.. right now only ignoring private, internal as the access_level and modifiers are not always defined
-        access_level_private, modifiers_private = check_if_private_access(file_line, access_level_private, modifiers_private)
+        tag_stack_current_node = tag_stack.currently_seeing_node
+        update_private_access(file_line, tag_stack_current_node)
 
         #identify singletons and set them up as dependencies even if they are in types that are private
-        maybe_singleton, maybe_singleton_file_line = two_line_singleton(maybe_singleton, maybe_singleton_file_line, file_line, current_node, access_level_private, modifiers_private, currently_seeing_tag, tag_stack)
+        maybe_singleton, maybe_singleton_file_line = two_line_singleton(maybe_singleton, maybe_singleton_file_line, file_line, current_node, tag_stack_current_node.access_level_private, tag_stack_current_node.modifiers_private, currently_seeing_tag, tag_stack)
 
         single_line_singleton(file_line, current_node)
       
@@ -123,7 +120,7 @@ class ASTHierarchyCreator
           current_node, superclass_or_protocol_name_found = superclass_or_protocol_name(file_line, currently_seeing_tag, current_node)
           if superclass_or_protocol_name_found == false 
             #add other regular dependencies ie. all words starting with Capital letter
-            if can_add_dependency(access_level_private, modifiers_private, currently_seeing_tag, file_line, tag_stack)
+            if can_add_dependency(tag_stack_current_node.access_level_private, tag_stack_current_node.modifiers_private, currently_seeing_tag, file_line, tag_stack)
               current_node = add_regular_dependencies(file_line, current_node)
             end
           end
@@ -205,15 +202,15 @@ class ASTHierarchyCreator
     return current_node, subclass_name_found
   end
 
-  def check_if_private_access(file_line, access_level_private, modifiers_private)
+  def update_private_access(file_line, tag_stack_current_node)
     if file_line.include? "access_level:"
       if file_line.include? "access_level: private" or
          file_line.include? "access_level: internal"
         Logger.log_message "-----access_level: private----"
-        access_level_private = true
+        tag_stack_current_node.access_level_private = true
       else
         Logger.log_message "--NOT---access_level: private----"
-        access_level_private = false
+        tag_stack_current_node.access_level_private = false
       end
     end
 
@@ -221,14 +218,12 @@ class ASTHierarchyCreator
       if file_line.include? "modifiers: private" or
          file_line.include? "modifiers: internal"
         Logger.log_message "-----modifiers: private----"
-        modifiers_private = true
+        tag_stack_current_node.modifiers_private = true
       else
         Logger.log_message "--NOT---modifiers: private----"
-        modifiers_private = false
+        tag_stack_current_node.modifiers_private = false
       end
     end
-
-    return access_level_private, modifiers_private
   end
 
   def single_line_singleton(file_line, current_node)
@@ -351,11 +346,14 @@ end
 
 class SwiftTagHierarchyNode
   attr_reader :level_spaces_length, :tag_name
+  attr_accessor :access_level_private, :modifiers_private
 
   def initialize tag_line
     @level_spaces_length = extract_tag_level (tag_line)
     @tag_name = /(\w*)(?=\s<)/.match(tag_line)[0] 
     # extracts "import_decl" from sentence like import_decl <range:
+    @access_level_private = false
+    @modifiers_private = false
   end
 
   def extract_tag_level (tag_line)
