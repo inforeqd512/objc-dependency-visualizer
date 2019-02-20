@@ -275,6 +275,7 @@ class SwiftPrimitives
       'URLRequest',
       'URLCache',
 #objc types
+      'id',
       'objc_class',
       'BOOL',
       'ObjCBool',
@@ -291,7 +292,6 @@ class SwiftPrimitives
       'Decoder',
       'Encoder',
       'Constants',
-      'Observable',
       'MockServiceProvider'
 
     ]).freeze
