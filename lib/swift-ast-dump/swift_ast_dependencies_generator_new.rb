@@ -79,14 +79,24 @@ class ASTHierarchyCreator
           num_nodes_popped = update_tag_hierarchy(tag_node, tag_stack)
           Logger.log_message "-----top_level_decl node created ---#{tag_node.tag_name}---\n\n"          
         else #insert tags at just below top_level_decl ie. import_decl, class_decl, struct_decl, proto_decl, ext_decl, enum_decl etc
-          if tag_node.level_spaces_length == node_below_top_level.level_spaces_length #insert only if this tag is sibling of the tag just below top level 
+          if tag_node.is_sibling_of(node_below_top_level) #insert
             num_nodes_popped = update_tag_hierarchy(tag_node, tag_stack)
             second_level_tag_node_created = true 
             currently_seeing_tag = tag_node.tag_name   
             Logger.log_message "-----second_level_tag_node_created: #{currently_seeing_tag}----#{tag_node.tag_name}-----#{tag_node.level_spaces_length}-----#{node_below_top_level.level_spaces_length}----#{node_below_top_level.tag_name}------\n\n"   
-          else
+          elsif tag_node.is_child_of(tag_stack.currently_seeing_node) #use access from parent if child node being added, and insert
+            currently_seeing_node = tag_stack.currently_seeing_node
+            tag_node.inherits_private_from_parent = true
+            tag_node.access_level_private = currently_seeing_node.access_level_private
+            tag_node.modifiers_private = currently_seeing_node.modifiers_private
             num_nodes_popped = update_tag_hierarchy(tag_node, tag_stack)
-            Logger.log_message "-----child level created-----#{tag_node.tag_name}-----#{tag_node.level_spaces_length}-----#{node_below_top_level.level_spaces_length}----#{node_below_top_level.tag_name}------\n\n" 
+            Logger.log_message "-----child level created-----#{tag_node.tag_name}-----#{tag_node.level_spaces_length}-----------\n\n" 
+          else
+            #TODO: this doesnt mean that we can use the accessor logic of the sibling level as this sibline level may need to inherit from parent. 
+            #Also need to understand the interaction of access_level and modifieres better in the AST file
+            #Also since we're reporting all dependencies of ObjC so should report on all from Swift
+            num_nodes_popped = update_tag_hierarchy(tag_node, tag_stack) #insert if sibling and let the access logic below handle setting the accessor values
+            Logger.log_message "-----sibling level created-----#{tag_node.tag_name}-----#{tag_node.level_spaces_length}-----------\n\n" 
           end  
         end
       end
@@ -203,6 +213,10 @@ class ASTHierarchyCreator
   end
 
   def update_private_access(file_line, tag_stack_current_node)
+    if tag_stack_current_node.inherits_private_from_parent == true
+      return
+    end
+
     if file_line.include? "access_level:"
       if file_line.include? "access_level: private" or
          file_line.include? "access_level: internal"
@@ -346,14 +360,32 @@ end
 
 class SwiftTagHierarchyNode
   attr_reader :level_spaces_length, :tag_name
-  attr_accessor :access_level_private, :modifiers_private
+  attr_accessor :access_level_private, :modifiers_private, :inherits_private_from_parent
 
   def initialize tag_line
     @level_spaces_length = extract_tag_level (tag_line)
-    @tag_name = /(\w*)(?=\s<)/.match(tag_line)[0] 
     # extracts "import_decl" from sentence like import_decl <range:
+    @tag_name = /(\w*)(?=\s<)/.match(tag_line)[0] 
+    # tracks access_level details per tag node so that publi
     @access_level_private = false
     @modifiers_private = false
+    @inherits_private_from_parent = false
+  end
+
+  def is_sibling_of(node)
+    if node != nil 
+      return @level_spaces_length == node.level_spaces_length
+    else
+      return false
+    end
+  end
+
+  def is_child_of(node)
+    if node != nil
+      return @level_spaces_length > node.level_spaces_length
+    else
+      return false
+    end
   end
 
   def extract_tag_level (tag_line)
