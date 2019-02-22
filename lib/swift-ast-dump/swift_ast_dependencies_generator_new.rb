@@ -60,7 +60,8 @@ class ASTHierarchyCreator
     maybe_singleton = ""
     maybe_singleton_file_line = ""
     currently_seeing_tag = ""
-
+    subclass_name_for_global_decl = filename #for var_decl, const_decl in the global scope in .swift file, link it to just the file name for now #TODO - a better way to manage this
+    
     #class, protocol, property, category, return type, method parameter type, enum, struct
     ast_tags_in_file(filename) do |file_line|
 
@@ -120,6 +121,10 @@ class ASTHierarchyCreator
             #add other regular dependencies ie. all words starting with Capital letter
             if can_add_dependency(currently_seeing_tag, file_line, tag_stack)
               current_node = add_regular_dependencies(file_line, current_node)
+                #if by the time the first regular dependency is added, the subclass name is not present, then most likely its because it is second level var_decl, const_dect, typealias_decl
+                #so to capture the dependency of the type this var,const or alias refers to, capture it atleast at .swift file name level till 
+                #TODO find a better way to link to proper paretn Type that uses the const or var
+                subclass_name_default_if_empty(current_node, subclass_name_for_global_decl)
             end
           end
         end
@@ -172,6 +177,15 @@ class ASTHierarchyCreator
     return current_node, superclass_or_protocol_name_found
   end
 
+  def subclass_name_default_if_empty(current_node, filename)
+    if current_node.subclass.length == 0
+      current_node.subclass = filename
+    end
+  end
+
+
+  #TODO:     const_decl <range: /Users/mistrys/Documents/Development/ANZ-Next/mobile-ios-github/Frameworks/ANZIdentitySupport/Sources/IdentityManager.swift:39:5-39:51>
+  #      pattern: analyticsHandler: AnalyticsHandler
   def subclass_name(file_line, currently_seeing_tag, current_node, dependency)
     subclass_name_found = false
     if current_node.subclass.length == 0
