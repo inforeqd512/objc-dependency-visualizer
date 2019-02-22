@@ -84,19 +84,9 @@ class ASTHierarchyCreator
             second_level_tag_node_created = true 
             currently_seeing_tag = tag_node.tag_name   
             Logger.log_message "-----second_level_tag_node_created: #{currently_seeing_tag}----#{tag_node.tag_name}-----#{tag_node.level_spaces_length}-----#{node_below_top_level.level_spaces_length}----#{node_below_top_level.tag_name}------\n\n"   
-          elsif tag_node.is_child_of(tag_stack.currently_seeing_node) #use access from parent if child node being added, and insert
-            currently_seeing_node = tag_stack.currently_seeing_node
-            tag_node.inherits_private_from_parent = true
-            tag_node.access_level_private = currently_seeing_node.access_level_private
-            tag_node.modifiers_private = currently_seeing_node.modifiers_private
-            num_nodes_popped = update_tag_hierarchy(tag_node, tag_stack)
-            Logger.log_message "-----child level created-----#{tag_node.tag_name}-----#{tag_node.level_spaces_length}-----------\n\n" 
           else
-            #TODO: this doesnt mean that we can use the accessor logic of the sibling level as this sibline level may need to inherit from parent. 
-            #Also need to understand the interaction of access_level and modifieres better in the AST file
-            #Also since we're reporting all dependencies of ObjC so should report on all from Swift
-            num_nodes_popped = update_tag_hierarchy(tag_node, tag_stack) #insert if sibling and let the access logic below handle setting the accessor values
-            Logger.log_message "-----sibling level created-----#{tag_node.tag_name}-----#{tag_node.level_spaces_length}-----------\n\n" 
+            num_nodes_popped = update_tag_hierarchy(tag_node, tag_stack) #insert if sibling/child and let the access logic below handle setting the accessor values
+            Logger.log_message "-----sibling/child level created-----#{tag_node.tag_name}-----#{tag_node.level_spaces_length}-----------\n\n" 
           end  
         end
       end
@@ -113,12 +103,10 @@ class ASTHierarchyCreator
 
       if current_node != nil # swift file may have more than one top level nodes?
 
-        #only map for when marked as 'public' as others are internal and of no concern.. right now only ignoring private, internal as the access_level and modifiers are not always defined
         tag_stack_current_node = tag_stack.currently_seeing_node
-        update_private_access(file_line, tag_stack_current_node)
 
         #identify singletons and set them up as dependencies even if they are in types that are private
-        maybe_singleton, maybe_singleton_file_line = two_line_singleton(maybe_singleton, maybe_singleton_file_line, file_line, current_node, tag_stack_current_node.access_level_private, tag_stack_current_node.modifiers_private, currently_seeing_tag, tag_stack)
+        maybe_singleton, maybe_singleton_file_line = two_line_singleton(maybe_singleton, maybe_singleton_file_line, file_line, current_node, currently_seeing_tag, tag_stack)
 
         single_line_singleton(file_line, current_node)
       
@@ -130,7 +118,7 @@ class ASTHierarchyCreator
           current_node, superclass_or_protocol_name_found = superclass_or_protocol_name(file_line, currently_seeing_tag, current_node)
           if superclass_or_protocol_name_found == false 
             #add other regular dependencies ie. all words starting with Capital letter
-            if can_add_dependency(tag_stack_current_node.access_level_private, tag_stack_current_node.modifiers_private, currently_seeing_tag, file_line, tag_stack)
+            if can_add_dependency(currently_seeing_tag, file_line, tag_stack)
               current_node = add_regular_dependencies(file_line, current_node)
             end
           end
@@ -212,34 +200,6 @@ class ASTHierarchyCreator
     return current_node, subclass_name_found
   end
 
-  def update_private_access(file_line, tag_stack_current_node)
-    if tag_stack_current_node.inherits_private_from_parent == true
-      return
-    end
-
-    if file_line.include? "access_level:"
-      if file_line.include? "access_level: private" or
-         file_line.include? "access_level: internal"
-        Logger.log_message "-----access_level: private----"
-        tag_stack_current_node.access_level_private = true
-      else
-        Logger.log_message "--NOT---access_level: private----"
-        tag_stack_current_node.access_level_private = false
-      end
-    end
-
-    if file_line.include? "modifiers:"
-      if file_line.include? "modifiers: private" or
-         file_line.include? "modifiers: internal"
-        Logger.log_message "-----modifiers: private----"
-        tag_stack_current_node.modifiers_private = true
-      else
-        Logger.log_message "--NOT---modifiers: private----"
-        tag_stack_current_node.modifiers_private = false
-      end
-    end
-  end
-
   def single_line_singleton(file_line, current_node)
     #identify singletons and set them up as dependencies
     #Singletons appear in AST in two ways. This is the second way
@@ -273,7 +233,7 @@ class ASTHierarchyCreator
     end
   end
 
-  def two_line_singleton(maybe_singleton, maybe_singleton_file_line, file_line, current_node, access_level_private, modifiers_private, currently_seeing_tag, tag_stack)
+  def two_line_singleton(maybe_singleton, maybe_singleton_file_line, file_line, current_node, currently_seeing_tag, tag_stack)
     #Singletons appear in AST in two ways. This is the first way
 
     #identify singletons and set them up as dependencies
@@ -301,7 +261,7 @@ class ASTHierarchyCreator
     end
 
     if singleton_not_identified == true
-      if can_add_dependency(access_level_private, modifiers_private, currently_seeing_tag, maybe_singleton_file_line, tag_stack)
+      if can_add_dependency(currently_seeing_tag, maybe_singleton_file_line, tag_stack)
         current_node.add_dependency(maybe_singleton_file_line, true)
       end
       maybe_singleton = ""
@@ -318,16 +278,8 @@ class ASTHierarchyCreator
     return maybe_singleton, maybe_singleton_file_line
   end
 
-  def can_add_dependency(access_level_private, modifiers_private, currently_seeing_tag, file_line, tag_stack)
+  def can_add_dependency(currently_seeing_tag, file_line, tag_stack)
     if  /<range:/.match(file_line) != nil #We need to consider lines that are ONLY not _decl ones 
-      return false
-    end
-    #only add dependency when non private access_level 
-    if access_level_private == true
-      return false
-    end
-    #if accesss level not private, only add dependency when  non private modifiers which are commonly found in child of access_level
-    if modifiers_private == true
       return false
     end
     #ignore enum_decl even for current top level tag
@@ -360,16 +312,11 @@ end
 
 class SwiftTagHierarchyNode
   attr_reader :level_spaces_length, :tag_name
-  attr_accessor :access_level_private, :modifiers_private, :inherits_private_from_parent
 
   def initialize tag_line
     @level_spaces_length = extract_tag_level (tag_line)
     # extracts "import_decl" from sentence like import_decl <range:
     @tag_name = /(\w*)(?=\s<)/.match(tag_line)[0] 
-    # tracks access_level details per tag node so that publi
-    @access_level_private = false
-    @modifiers_private = false
-    @inherits_private_from_parent = false
   end
 
   def is_sibling_of(node)
