@@ -106,6 +106,7 @@ class SwiftPrimitives
       'AutoreleasingUnsafeMutablePointer',
       'Bool',
       'CodingKey',
+      'CodingKeys',
       'COpaquePointer',
       'CVaListPointer',
       'Character',
@@ -156,6 +157,7 @@ class SwiftPrimitives
       'LazyMapGenerator',
       'LazyMapSequence',
       'LazySequence',
+      'Level',
       'Locale',
       'ManagedBufferPointer',
       'Mirror',
@@ -225,6 +227,7 @@ class SwiftPrimitives
       'UnsafeMutableRawPointer',
       'URLSessionConfiguration',
       'UserDefaults',
+      'View',
       'Zip2Generator',
       'Zip2Sequence',
 #Operators      
@@ -293,7 +296,12 @@ class SwiftPrimitives
       'Decoder',
       'Encoder',
       'Constants',
-      'MockServiceProvider'
+      'MockServiceProvider',
+      'OKAction',
+      'Load',
+      'More',
+      'Transactions',
+      'This'
 
     ]).freeze
 
@@ -304,6 +312,7 @@ class SwiftPrimitives
 end
 
 def is_primitive_swift_type?(dest)
+  $stderr.puts "-------dest: #{dest}-----------"
   SwiftPrimitives.primitive_types.include?(dest)
 end
 
