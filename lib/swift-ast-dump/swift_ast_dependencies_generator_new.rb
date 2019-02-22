@@ -115,16 +115,18 @@ class ASTHierarchyCreator
         current_node, subclass_name_found = subclass_name(file_line, currently_seeing_tag, current_node, dependency)
 
         #superclass or protocol name
-        if subclass_name_found == false
+        if subclass_name_found == false #if this file line has not already passed the above subclass check
           current_node, superclass_or_protocol_name_found = superclass_or_protocol_name(file_line, currently_seeing_tag, current_node)
-          if superclass_or_protocol_name_found == false 
-            #add other regular dependencies ie. all words starting with Capital letter
-            if can_add_dependency(currently_seeing_tag, file_line, tag_stack)
-              current_node = add_regular_dependencies(file_line, current_node)
+          if superclass_or_protocol_name_found == false #if this file line has not already passed the above superclass_or_protocol_name check
+            if maybe_singleton.length == 0 #if not a two line singleton candidate
+              #add other regular dependencies ie. all words starting with Capital letter
+              if can_add_dependency(currently_seeing_tag, file_line, tag_stack)
+                current_node = add_regular_dependencies(file_line, current_node)
                 #if by the time the first regular dependency is added, the subclass name is not present, then most likely its because it is second level var_decl, const_dect, typealias_decl
                 #so to capture the dependency of the type this var,const or alias refers to, capture it atleast at .swift file name level till 
                 #TODO find a better way to link to proper paretn Type that uses the const or var
                 subclass_name_default_if_empty(current_node, subclass_name_for_global_decl)
+              end
             end
           end
         end
@@ -276,6 +278,7 @@ class ASTHierarchyCreator
 
     if singleton_not_identified == true
       if can_add_dependency(currently_seeing_tag, maybe_singleton_file_line, tag_stack)
+        Logger.log_message "-----singleton_not_identified add maybe_singleton_file_line---"
         current_node.add_dependency(maybe_singleton_file_line, true)
       end
       maybe_singleton = ""
