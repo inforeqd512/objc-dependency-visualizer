@@ -45,9 +45,9 @@ class ObjcDependenciesGenerator
     dirs.each do |dir|
       Logger.log_message("------------START FIND-----------")
       Logger.log_message("------object_files_in_dir dir: #{dir}--------")
-      Logger.log_message("find \"#{dir.chop}\" -name \"*.o\"") #chop to remove \n
+      Logger.log_message("find \"#{dir.chomp('')}\" -name \"*.o\"") #chomp to remove trailing newline \n
 
-      IO.popen("find \"#{dir.chop}\" -name \"*.o\"") { |f|
+      IO.popen("find \"#{dir.chomp('')}\" -name \"*.o\"") { |f|
         f.each { |line| yield line }
       }
     end  
