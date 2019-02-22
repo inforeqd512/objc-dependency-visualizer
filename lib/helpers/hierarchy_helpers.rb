@@ -83,6 +83,7 @@ class DependencyHierarchyNode
     token_string = dependent_types_string.gsub(/[\(\)\-<>`\s@:_\."]/, ",")
     token_list = token_string.split(",") #blindly convert the pattern characters like () <> etc to commas and split this string into tokens with ',' delimiter
     token_list.each { |token| 
+      token.strip! #remove leading and trailing spaces eg "struct ", or " " tokens
       if token.length > 1 #ignore any empty or Generic <T> etc types of tokens and add those directly as dependencies. keep track of exclusions in the swift primitives list
         if token =~ /^[A-Z]/ #if string starts with Capital letter then it's a Type eg String etc
           if token != token.upcase #if the word is all upper case then it's some string or constant or switch case and we're not interested in it
