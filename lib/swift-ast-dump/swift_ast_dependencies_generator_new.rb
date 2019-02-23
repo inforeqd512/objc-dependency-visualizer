@@ -76,15 +76,20 @@ class ASTHierarchyCreator
         tag_node = SwiftTagHierarchyNode.new (file_line)
 
         node_below_top_level = tag_stack.node_just_below_top_level
-        if node_below_top_level == nil #insert top_level_decl
+        if file_line.include?("top_level_decl") #insert top_level_decl if the tag stack and pop existing nodes if any
           num_nodes_popped = update_tag_hierarchy(tag_node, tag_stack)
           Logger.log_message "-----top_level_decl node created ---#{tag_node.tag_name}---\n\n"          
         else #insert tags at just below top_level_decl ie. import_decl, class_decl, struct_decl, proto_decl, ext_decl, enum_decl etc
-          if tag_node.is_sibling_of(node_below_top_level) #insert
+          if node_below_top_level == nil  or #if a second level to top_level is NOT created yet then add
+             (node_below_top_level != nil and tag_node.is_sibling_of(node_below_top_level)) #or if a second level to top_level is created and the node being inserted in it's sibling then add
             num_nodes_popped = update_tag_hierarchy(tag_node, tag_stack)
             second_level_tag_node_created = true 
             currently_seeing_tag = tag_node.tag_name   
-            Logger.log_message "-----second_level_tag_node_created: #{currently_seeing_tag}----#{tag_node.tag_name}-----#{tag_node.level_spaces_length}-----#{node_below_top_level.level_spaces_length}----#{node_below_top_level.tag_name}------\n\n"   
+            if node_below_top_level == nil
+              Logger.log_message "-----second_level_tag_node_created: #{currently_seeing_tag}----#{tag_node.tag_name}-----#{tag_node.level_spaces_length}---------node_below_top_level is NIL------\n\n"   
+            else
+              Logger.log_message "-----second_level_tag_node_created: #{currently_seeing_tag}----#{tag_node.tag_name}-----#{tag_node.level_spaces_length}-----#{node_below_top_level.level_spaces_length}----#{node_below_top_level.tag_name}------\n\n"   
+            end
           else
             num_nodes_popped = update_tag_hierarchy(tag_node, tag_stack) #insert if sibling/child and let the access logic below handle setting the accessor values
             Logger.log_message "-----sibling/child level created-----#{tag_node.tag_name}-----#{tag_node.level_spaces_length}-----------\n\n" 
