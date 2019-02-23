@@ -258,7 +258,7 @@ class ASTHierarchyCreator
     # identifier: `sharedInstance`
 
     definitely_singleton = ""
-    singleton_not_identified = false
+    is_not_a_two_line_singleton = false
     if /identifier:\s`[A-Z].*`/.match(file_line) != nil
       match_text = /identifier:\s`(?<type_name>[A-Z].*)`/.match(file_line)
       maybe_singleton_file_line = file_line
@@ -272,13 +272,14 @@ class ASTHierarchyCreator
           (maybe_singleton.length > 0)
       definitely_singleton = maybe_singleton + ".main"
   
-    else
-      singleton_not_identified = true
+    elsif maybe_singleton.length > 0  and 
+      definitely_singleton.length == 0 #if a candidate singleton line was seen before bur was not followed by one with a definite singleton
+      is_not_a_two_line_singleton = true
     end
 
-    if singleton_not_identified == true
+    if is_not_a_two_line_singleton == true
       if can_add_dependency(currently_seeing_tag, maybe_singleton_file_line, tag_stack)
-        Logger.log_message "-----singleton_not_identified add maybe_singleton_file_line---"
+        Logger.log_message "-----is_not_a_two_line_singleton add maybe_singleton_file_line---"
         current_node.add_dependency(maybe_singleton_file_line, true)
       end
       maybe_singleton = ""
