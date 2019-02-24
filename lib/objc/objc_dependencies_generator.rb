@@ -19,6 +19,7 @@ class ObjcDependenciesGenerator
         filename.include?("RXTimer") == false and
         filename.include?("RCWS") == false and
         filename.include?("ANZSAL") == false and
+        filename.include?("ANZRCWS") == false and
         filename.include?("sal_") == false and
         filename.include?("soap") == false and
         filename.include?("wsaapi") == false and
