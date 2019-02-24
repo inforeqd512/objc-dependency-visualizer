@@ -109,8 +109,6 @@ class ASTHierarchyCreator
 
       if current_node != nil # swift file may have more than one top level nodes?
 
-        tag_stack_current_node = tag_stack.currently_seeing_node
-
         #identify singletons and set them up as dependencies even if they are in types that are private
         maybe_singleton, maybe_singleton_file_line = two_line_singleton(maybe_singleton, maybe_singleton_file_line, file_line, current_node, currently_seeing_tag, tag_stack)
 
@@ -118,6 +116,7 @@ class ASTHierarchyCreator
       
         #subclass, protocol, extension name - this works as the subclass will be updated only if it was nil before.. 
         current_node, subclass_name_found = subclass_name(file_line, currently_seeing_tag, current_node, dependency)
+        Logger.log_message("------subclass_name: #{current_node.subclass}-------")
 
         #superclass or protocol name
         if subclass_name_found == false #if this file line has not already passed the above subclass check

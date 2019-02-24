@@ -4,8 +4,10 @@ require 'optparse'
 require 'yaml'
 require 'json'
 require 'helpers/objc_dependency_tree_generator_helper'
+require 'helpers/objc_from_file_dependency_tree_generator_helper'
 require 'swift-ast-dump/swift_ast_dependencies_generator_new'
 require 'objc/objc_dependencies_generator'
+require 'objc/objc_from_file_dependencies_generator'
 require 'sourcekitten/sourcekitten_dependencies_generator'
 require 'dependency_tree'
 require 'dependency_tree_sigmajs'
@@ -35,6 +37,9 @@ class DependencyTreeGenerator
       o.separator 'General options:'
       o.on('-p PATH', '--path', 'Path to directory where are your .o files were placed by the compiler', Array) do |directory|
         options[:search_directories] = Array(options[:search_directories]) | Array(directory)
+      end
+      o.on('-R PROJECT_ROOT_PATH', 'Path to project root directory') do |project_root_path|
+        options[:project_root_path] = project_root_path
       end
       o.on('-D DERIVED_DATA', 'Path to directory where DerivedData is') do |derived_data|
         options[:derived_data_paths] = [derived_data]
@@ -133,6 +138,13 @@ class DependencyTreeGenerator
     if @options[:output_format].include?("sigmajs")
       update_tree_block = lambda { |source, source_type, dest, dest_type, link_type| tree.add_sigmajs(source, source_type, dest, dest_type, link_type) } 
 
+    end
+
+    if @options[:project_root_path]
+      $stderr.puts "\n\n--------------objc implementation file enter--------------"
+      file_paths = find_objc_implementation_files(@options[:project_root_path])
+      return tree unless file_paths
+      ObjcFromFileDependenciesGenerator.new.generate_dependencies(file_paths, &update_tree_block)
     end
 
     if @options[:derived_data_paths]

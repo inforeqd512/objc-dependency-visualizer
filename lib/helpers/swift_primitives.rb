@@ -286,11 +286,19 @@ class SwiftPrimitives
       'bool',
       'Log',
       'struct',
+      'Nonnull',
+      'NSStringFromClass',
+      'Nullable',
+      'UTF8String',
 #Project
       'ImplicitlyUnwrappedOptional',
       'NibProviding',
       'OSLog',
       'ANZDebugEnvironmentConfiguration',
+      'IPAddress',
+      'ObjectFromDictionaryWithClass',
+      'SuppressPerformSelectorLeakWarning',
+      'SCNetworkReachabilityRef',
       'Grow',
       'AppID',
       'Decoder',
@@ -301,7 +309,8 @@ class SwiftPrimitives
       'Load',
       'More',
       'Transactions',
-      'This'
+      'This',
+      'The'
 
     ]).freeze
 
