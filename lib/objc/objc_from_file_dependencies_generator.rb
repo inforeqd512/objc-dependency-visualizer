@@ -106,10 +106,8 @@ class ObjcFromFileHierarchyCreator
         end
 
         if super_class_name.length > 0 #when the current node is found or created and the super class name is available
-          if current_node.superclass_or_protocol.length == 0 # and it was not set on the current node (when the node was existing)
-            Logger.log_message("---------superclass: #{super_class_name}--------")
-            current_node.add_polymorphism(super_class_name)
-          end            
+          Logger.log_message("---------superclass: #{super_class_name}--------")
+          current_node.add_polymorphism(super_class_name)    
         end
 
         if protocol_list_string.length > 0
