@@ -135,6 +135,9 @@ class ObjcFromFileHierarchyCreator
       return false
     end
 
+    if file_line.include?("NRFeatureFlag") #if string contains NewRelic settings
+        return false
+    end
     return true
   end
 
