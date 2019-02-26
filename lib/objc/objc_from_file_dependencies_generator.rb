@@ -92,8 +92,14 @@ class ObjcFromFileHierarchyCreator
     #
     if file_line.include?("/*")  #multiline comment  
       @multiline_comment_ignore = true
+      return_value = false
       Logger.log_message("------multiline_comment_ignore: #{@multiline_comment_ignore}------")
-      return false
+      if file_line.include?("*/")  #multiline comment  
+        @multiline_comment_ignore = false
+        Logger.log_message("------multiline_comment_ignore: #{@multiline_comment_ignore}------")
+        return_value = false
+      end
+      return return_value
     end
 
     if file_line.include?("*/")  #multiline comment  
