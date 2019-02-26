@@ -86,8 +86,12 @@ class DependencyHierarchyNode
       token.strip! #remove leading and trailing spaces eg "struct ", or " " tokens
       if token.length > 1 #ignore any empty or Generic <T> etc types of tokens and add those directly as dependencies. keep track of exclusions in the swift primitives list
         if token =~ /^[A-Z]/ #if string starts with Capital letter then it's a Type eg String etc
-          if token.end_with?("SuccessBlock") == false and
-            token.end_with?("FailureBlock") == false
+          if token.end_with?("Block") == false 
+            # and
+            # token.start_with?("_") == false and #following are in minority, so no issuesif commented
+            # token.start_with?("*") == false and
+            # token.start_with?("/") == false and
+            # token == " shared"
             if token != token.upcase #if the word is all upper case then it's some string or constant or switch case and we're not interested in it
               Logger.log_message("--------add_tokenized_dependency token: #{token}-------------")
               yield token
