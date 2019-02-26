@@ -7,23 +7,28 @@ class ObjcFromFileDependenciesGenerator
   attr_reader :dependency
 
   # http://www.thagomizer.com/blog/2016/05/06/algorithms-queues-and-stacks.html
-  def generate_dependencies(implementation_file_paths)
+  def generate_dependencies(header_and_implementation_file_paths)
 
-    Logger.log_message("-----implementation_file_paths: #{implementation_file_paths}----")
+    Logger.log_message("-----header_and_implementation_file_paths: #{header_and_implementation_file_paths}----")
     @dependency = []
     hierarchyCreator = ObjcFromFileHierarchyCreator.new
 
-    implementation_file_paths.each {|filename| 
+    header_and_implementation_file_paths.each {|filename| 
         Logger.log_message("\n\n----filename: #{filename}")
         dependency_hierarchy = hierarchyCreator.create_hierarchy(filename, @dependency)
         @dependency = dependency_hierarchy
-
-        print_hierarchy(@dependency)
-        #yield source and destination to create a tree
-        pair_source_dest(@dependency) do  |source, source_type, dest, dest_type, link_type|
-            yield source, source_type, dest, dest_type, link_type
-        end
     }
+
+        #yield source and destination to create a tree
+    pair_source_dest(@dependency) do  |source, source_type, dest, dest_type, link_type|
+      if @sigmajs
+        yield source, dest
+      else
+        yield source, source_type, dest, dest_type, link_type
+      end
+    end
+
+    print_hierarchy(@dependency)
 
   end
 end
@@ -33,7 +38,7 @@ class ObjcFromFileHierarchyCreator
   def create_hierarchy filename, dependency
 
     tag_stack = Stack.new
-    dependency = dependency.dup
+    dependency = dependency
     current_node = nil
     global_node = DependencyHierarchyNode.new
     multiline_comment_ignore = false
@@ -46,23 +51,22 @@ class ObjcFromFileHierarchyCreator
       #for each line tokenize and find dependency
       #till reach @end
       #repeat till end of file
-      #for superclass, will have to see corresponding .h file - do we really need to know the superclass information? 
+      #for superclass, will have to see corresponding .h file - so that we see the linkage of several levels of inheritance
+      #ignore @protocol for now
 
       #ignore comment lines - in between /* */ and //
       #One way to ignore enum values?
-        #ignore         case AccountsServiceScopeBanking
+        #ignore         case AccountsServiceScopeBanking - lines containing 'case'
 
       # currencyFormatter:ANZCurrencyFormatter.sharedInstance];
       # NSDictionary *outageDataDictionary = [ANZAggregateRemoteConfig sharedInstance].basicBankingConfig[kOutageMessageDataKey];
       # queue:[NSOperationQueue mainQueue]
 
-
       #when see @implementation then take the word after that as subclass
-      if file_line.include?("@implementation")  
-        current_node = DependencyHierarchyNode.new
-        Logger.log_message "----new node created: #{current_node}------"
-        dependency.push(current_node) 
-        current_node, subclass_name_found = subclass_name(file_line, current_node, dependency)
+      decl_start_line_found, current_node = update_subclass_superclass_protocol_names(file_line, current_node, dependency)
+
+      if decl_start_line_found == true 
+        # ignore as the above method has processed it 
       elsif current_node == nil  #means the statement was in GLOBAL scope of file
         #for static and global declarations, use the file name as default node
         #may not require to do anything as the logic to extract tokens will take care of ensuring it's captured where its used
@@ -84,6 +88,38 @@ class ObjcFromFileHierarchyCreator
     end
 
     return dependency
+  end
+
+  def update_subclass_superclass_protocol_names(file_line, current_node, dependency)
+
+    decl_start_line_found = false
+    if file_line.include?("@interface") or
+      file_line.include?("@implementation")
+      decl_start_line_found = true
+      subclass_name, super_class_name, protocol_list_string = subclass_superclass_protocol_name(file_line)
+
+      if subclass_name.length > 0 
+        Logger.log_message("---------subclass: #{subclass_name}--------")
+        current_node = find_or_create_hierarchy_node_and_update_dependency(subclass_name, current_node, dependency)
+        if current_node.subclass.length == 0 #when new node created
+          current_node.subclass = subclass_name
+        end
+
+        if super_class_name.length > 0 #when the current node is found or created and the super class name is available
+          if current_node.superclass_or_protocol.length == 0 # and it was not set on the current node (when the node was existing)
+            Logger.log_message("---------superclass: #{super_class_name}--------")
+            current_node.add_polymorphism(super_class_name)
+          end            
+        end
+
+        if protocol_list_string.length > 0
+          Logger.log_message("---------protocols: #{protocol_list_string}--------")
+          current_node.add_polymorphism(protocol_list_string) #add tokenised protocols
+        end
+      end
+    end
+
+    return decl_start_line_found, current_node
   end
 
   def can_add_dependency(file_line)
@@ -177,58 +213,63 @@ class ObjcFromFileHierarchyCreator
     end
   end
 
-
-  def superclass_or_protocol_name(file_line, currently_seeing_tag, current_node)
-    superclass_or_protocol_name_found = false
-    if current_node.superclass_or_protocol.length == 0
-
-      superclass_name_regex = /(?<=}\s\(\s)(.*?)(?=\s\))/ #from at_type_regex tag
-
-      if file_line.include? "AT_type" and currently_seeing_tag.include? "TAG_inheritance" #only superclasses are reported, the protocols are not directly seen. the only way is tag_subprogram, protocol method nama
-        name_match = superclass_name_regex.match(file_line) #extract inheritance name between brackets
-        name = name_match[0]
-        current_node.add_polymorphism(name)
-        superclass_or_protocol_name_found = true
-        Logger.log_message("---------superclass: #{name}-----TAG_inheritance---AT_type---")
-      end
+  def find_or_create_hierarchy_node_and_update_dependency(subclass_name, current_node, dependency)
+    existing_node = find_node(subclass_name, dependency)
+    if existing_node == nil
+      current_node = DependencyHierarchyNode.new
+      Logger.log_message "----new node created: #{current_node}------"
+      dependency.push(current_node)
+    else
+      current_node = existing_node
+      Logger.log_message("--------existing node found in dependency : #{current_node}------")
     end
-    return current_node, superclass_or_protocol_name_found
+
+    return current_node
   end
 
-  def subclass_name(file_line, current_node, dependency)
-    subclass_name_found = false
-    if current_node.subclass.length == 0
+  def subclass_superclass_protocol_name(file_line)
+    subclass_name = ""
+    super_class_name = ""
+    protocol_list_string = ""
+    name_match = nil
 
+    # @interface ANZASFetchBankingCMCInvestingAccountsTask : ANZTaskGroup <--will give  subclass and superclass name
+    # @interface ANZASFetchBankingCMCInvestingAccountsTask: ANZTaskGroup
+    # @interface ANZBBPaymentsPlaceholderView ()        <--in .m file, will give only subclass name
+    # @interface ANZBBPayeesSearchDisplayController     <-- in .h file, will give only subclass name
+    # @interface ANZBBPayeesSearchDisplayController : ANZTaskGroup <UISearchBarDelegate, UITableViewDataSource, UITableViewDelegate, UISearchControllerDelegate, UISearchResultsUpdating> <--will give subclass and superclass name and protocol string
+    # @interface ANZBBPayeesSearchDisplayController () <UISearchBarDelegate, UITableViewDataSource, UITableViewDelegate, UISearchControllerDelegate, UISearchResultsUpdating> <--will give subclass  and protocol string
+
+    if file_line.include? "@interface"
+      subclass_superclass_name_regex = /@interface (?<subclass_name>\w*)\s*:*\s*(?<super_class_name>\w*)/ #from @interface tag in the .h file
+      name_match = subclass_superclass_name_regex.match(file_line) 
+      subclass_name = name_match[:subclass_name]
+      super_class_name = name_match[:super_class_name]
+
+    elsif file_line.include? "@implementation" 
       category_name_regex =/@implementation (?<subclass_name>\w+) \((?<extension_name>\w+)\)/ #from @implementation line
       subclass_name_regex = /@implementation (?<subclass_name>\w+)/ #from @implementation line
+    
+      #TODO: ignoring categories for now as the dependencies is on the class itself, as in swift. Maybe we should just mark it as categories
+      # name_match = category_name_regex.match(file_line) 
+      # if name_match != nil
+      #   name = name_match[:subclass_name]+"+"+name_match[:extension_name]
+      #   subclass_name_found = true
+      # else
+        name_match = subclass_name_regex.match(file_line) 
+        subclass_name = name_match[:subclass_name]
+      # end
+    end
 
-      if file_line.include? "@implementation" 
-
-        #TODO: ignoring categories for now as the dependencies is on the class itself, as in swift. Maybe we should just mark it as categories
-        # name_match = category_name_regex.match(file_line) 
-        # if name_match != nil
-        #   name = name_match[:subclass_name]+"+"+name_match[:extension_name]
-        #   subclass_name_found = true
-        # else
-          name_match = subclass_name_regex.match(file_line) 
-          name = name_match[:subclass_name]
-          subclass_name_found = true
-        # end
-
-        existing_subclass_or_extension_node = find_node(name, dependency)
-        if existing_subclass_or_extension_node == nil
-          Logger.log_message("-----current_node: #{current_node}----subclass: #{name}----@implementation------")
-          current_node.subclass = name
-        else
-          dependency.pop #remove the node created at TAG_structure_type
-          Logger.log_message("--------TAG_structure_type-current_node : #{current_node}------")
-          current_node = existing_subclass_or_extension_node
-          Logger.log_message("--------TAG_structure_type-found current_node : #{current_node.subclass}----#{current_node.dependency.count}--")
-        end
+    if name_match != nil 
+      #TODO: multiline protocol string will not be added to protocol list but to dependencies
+      candidate_list = file_line.split("<")
+      if candidate_list.count > 1 #means there was a protocol list
+        protocol_list_string = candidate_list.last #split on the crocodile brace opening for prototocol and take the last item in that list
       end
     end
 
-    return current_node, subclass_name_found
+    return subclass_name, super_class_name, protocol_list_string
   end
 
   def implementation_file_lines(file_path)
