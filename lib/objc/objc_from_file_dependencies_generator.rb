@@ -1,6 +1,6 @@
 require 'helpers/logger'
 
-#since all info cannot be gained from dwarfdump file eg sharedInstance (Singleton), and dependencies being referenced from inside a method.
+#since all info cannot be gained from dwarfdump file eg sharedInstance (Singleton), and static methods of other classes, other dependencies being referenced from inside a method eg view models 
 #So looking at the .m files instead
 class ObjcFromFileDependenciesGenerator
 
@@ -52,6 +52,10 @@ class ObjcFromFileHierarchyCreator
       #One way to ignore enum values?
         #ignore         case AccountsServiceScopeBanking
 
+      # currencyFormatter:ANZCurrencyFormatter.sharedInstance];
+      # NSDictionary *outageDataDictionary = [ANZAggregateRemoteConfig sharedInstance].basicBankingConfig[kOutageMessageDataKey];
+      # queue:[NSOperationQueue mainQueue]
+
 
       #when see @implementation then take the word after that as subclass
       if file_line.include?("@implementation")  
@@ -63,7 +67,9 @@ class ObjcFromFileHierarchyCreator
         #for static and global declarations, use the file name as default node
         #may not require to do anything as the logic to extract tokens will take care of ensuring it's captured where its used
         #only thing we will not know is if it;s define dna never used in the file 
-      else #means in local scope of the @implementation
+      elsif single_line_singleton(file_line, current_node) == true #line added as dependency 
+        #dont add it here as line already added
+      elsif current_node != nil #means in local scope of the @implementation
         #for each line in scope of @implementation ... @end, tokenize and find dependency
         if can_add_dependency(file_line)
           current_node.add_dependency(file_line, true)
@@ -81,7 +87,6 @@ class ObjcFromFileHierarchyCreator
   end
 
   def can_add_dependency(file_line)
-
     #
     # Multiline - check for it before every other check so other checks do not bypass the setting of the multiline_comment_ignore variabel
     #
@@ -102,6 +107,9 @@ class ObjcFromFileHierarchyCreator
       return false
     end
 
+    #
+    # Rest of the checks
+    #
      #One way to ignore enum values?
         #ignore         case AccountsServiceScopeBanking
     if file_line.include?(" case ")  #enum case statement 
@@ -123,6 +131,43 @@ class ObjcFromFileHierarchyCreator
 
     return true
   end
+
+  def single_line_singleton(file_line, current_node)
+    #identify singletons and set them up as dependencies
+    #Singletons appear in AST in two ways. This is the second way
+
+    #    init_decl <range: xxx.swift>
+    # 3: urlOpener: URLOpener = UIApplication.shared
+
+    # func_decl <range: xxx.swift:14:5-17:6>
+    # 0: for bundle: Bundle = Bundle.main
+
+    # func_decl <range: /Users/mistrys/Documents/Development/-Next/mobile-ios-github/Frameworks/UIKit/Sources/CGFloat+.swift:9:5-11:6>
+    # parameters:
+    # 0: displayScale: CGFloat = UIScreen.main.scale
+    definitely_singleton = ""
+    if /[a-zA-Z]\.main/.match(file_line) != nil
+      match_text = /(?<type_name>\w*.main)/.match(file_line)
+      definitely_singleton = match_text[:type_name]
+
+    elsif /[a-zA-Z]\.shared/.match(file_line) != nil
+      match_text = /(?<type_name>\w*.shared)/.match(file_line)
+      definitely_singleton = match_text[:type_name]
+      Logger.log_message "-----definitely_singleton: #{definitely_singleton}----"
+
+    end
+
+    if definitely_singleton.length > 0
+      #add the singleton if it was found
+      Logger.log_message "-----definitely_singleton: #{definitely_singleton}-ADDED-SINGLE LINE SINGLETON--"
+      current_node.add_dependency(definitely_singleton)
+      definitely_singleton = ""
+      return true
+    else
+      return false
+    end
+  end
+
 
   def superclass_or_protocol_name(file_line, currently_seeing_tag, current_node)
     superclass_or_protocol_name_found = false
