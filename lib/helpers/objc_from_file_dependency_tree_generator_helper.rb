@@ -32,7 +32,8 @@ def find_objc_implementation_files(project_root_folder_path)
     "DeveloperSupport", 
     "TestSupport", 
     "Foundation/",
-    "Reachability"]
+    "Reachability",
+    "Mock"]
     final_paths = paths.reject{|path| paths_to_ignore.any?{|word| path.include?(word)}}
     Logger.log_message("-----------final_paths: #{final_paths}----------------------")
 
