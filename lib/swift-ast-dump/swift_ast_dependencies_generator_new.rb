@@ -116,7 +116,6 @@ class ASTHierarchyCreator
       
         #subclass, protocol, extension name - this works as the subclass will be updated only if it was nil before.. 
         current_node, subclass_name_found = subclass_name(file_line, currently_seeing_tag, current_node, dependency)
-        Logger.log_message("------subclass_name: #{current_node.subclass}-------")
 
         #superclass or protocol name
         if subclass_name_found == false #if this file line has not already passed the above subclass check
@@ -313,7 +312,10 @@ class ASTHierarchyCreator
     #ignore tags where you will definitely not find any dependencies eg literal:|method_name:|attributes:|
     #ignore tags where the place where the dependency would have started is a small case so it's not a dependency eg identifier: `[a-z]
     #ignore tags with singleton as it's already taken care of above eg identifier: `shared`|identifier: `main`/
-    if file_line.match(/raw_text:|literal:|method_name:|attributes:|identifier: `[a-z]|name: `[a-z]/) != nil
+    #uses attributes: tag for information like: 
+    # @objc(XXXModalAction)
+    # public final class ModalAction: NSObject, Performable {
+    if file_line.match(/raw_text:|literal:|method_name:|identifier: `[a-z]|name: `[a-z]/) != nil
       return false
     end
     #ignore enum_decl even for currently seeing child tag
