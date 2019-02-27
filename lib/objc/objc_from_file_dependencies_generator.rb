@@ -58,8 +58,8 @@ class ObjcFromFileHierarchyCreator
       #One way to ignore enum values?
         #ignore         case AccountsServiceScopeBanking - lines containing 'case'
 
-      # currencyFormatter:ANZCurrencyFormatter.sharedInstance];
-      # NSDictionary *outageDataDictionary = [ANZAggregateRemoteConfig sharedInstance].basicBankingConfig[kOutageMessageDataKey];
+      # currencyFormatter:XXXCurrencyFormatter.sharedInstance];
+      # NSDictionary *outageDataDictionary = [XXXAggregateRemoteConfig sharedInstance].basicBankingConfig[kOutageMessageDataKey];
       # queue:[NSOperationQueue mainQueue]
 
       #when see @implementation then take the word after that as subclass
@@ -76,7 +76,16 @@ class ObjcFromFileHierarchyCreator
       elsif current_node != nil #means in local scope of the @implementation
         #for each line in scope of @implementation ... @end, tokenize and find dependency
         if can_add_dependency(file_line)
-          current_node.add_dependency(file_line, true)
+          if file_line.include?("\"") 
+            # if it was false because of double quotes then modify the line and extract dependencies
+            # NSString *htmlErrorContent = [XXXFileReader contentsForFile:@"error" type:@"html" inBundle:[NSBundle mainBundle]]; <-- identify te singleton
+
+            everything_between_double_quotes = /(["'])(\\?.)*?\1/
+            removed_double_quotes = file_line.sub(everything_between_double_quotes, '')
+            current_node.add_dependency(removed_double_quotes, true)          
+          else
+            current_node.add_dependency(file_line, true)
+          end
         end
       end
 
@@ -160,12 +169,12 @@ class ObjcFromFileHierarchyCreator
       return false
     end
 
-    if file_line.include?("\"") #if string contains a double quotes then it could be any of   NSAssert, ANZGeneralLogDebug
     #NSAssert
-    #ANZGeneralLogDebug
-    #@"
-    #"
-    #ANZLog
+    #GeneralLogDebug
+    #Log
+    if file_line.include?("NSAssert") or
+      file_line.include?("Debug") or
+      file_line.include?("Log") 
       return false
     end
 
@@ -231,12 +240,12 @@ class ObjcFromFileHierarchyCreator
     protocol_list_string = ""
     name_match = nil
 
-    # @interface ANZASFetchBankingCMCInvestingAccountsTask : ANZTaskGroup <--will give  subclass and superclass name
-    # @interface ANZASFetchBankingCMCInvestingAccountsTask: ANZTaskGroup
-    # @interface ANZBBPaymentsPlaceholderView ()        <--in .m file, will give only subclass name
-    # @interface ANZBBPayeesSearchDisplayController     <-- in .h file, will give only subclass name
-    # @interface ANZBBPayeesSearchDisplayController : ANZTaskGroup <UISearchBarDelegate, UITableViewDataSource, UITableViewDelegate, UISearchControllerDelegate, UISearchResultsUpdating> <--will give subclass and superclass name and protocol string
-    # @interface ANZBBPayeesSearchDisplayController () <UISearchBarDelegate, UITableViewDataSource, UITableViewDelegate, UISearchControllerDelegate, UISearchResultsUpdating> <--will give subclass  and protocol string
+    # @interface XXXASFetchBankingCMCInvestingAccountsTask : XXXTaskGroup <--will give  subclass and superclass name
+    # @interface XXXASFetchBankingCMCInvestingAccountsTask: XXXTaskGroup
+    # @interface XXXBBPaymentsPlaceholderView ()        <--in .m file, will give only subclass name
+    # @interface XXXBBPayeesSearchDisplayController     <-- in .h file, will give only subclass name
+    # @interface XXXBBPayeesSearchDisplayController : XXXTaskGroup <UISearchBarDelegate, UITableViewDataSource, UITableViewDelegate, UISearchControllerDelegate, UISearchResultsUpdating> <--will give subclass and superclass name and protocol string
+    # @interface XXXBBPayeesSearchDisplayController () <UISearchBarDelegate, UITableViewDataSource, UITableViewDelegate, UISearchControllerDelegate, UISearchResultsUpdating> <--will give subclass  and protocol string
 
     if file_line.include? "@interface"
       subclass_superclass_name_regex = /@interface (?<subclass_name>\w*)\s*:*\s*(?<super_class_name>\w*)/ #from @interface tag in the .h file
