@@ -342,6 +342,8 @@ def is_filtered_objc_type?(dest)
 end
 
 def is_valid_dest?(dest, exclusion_prefixes)
+  return true if dest.include?("URLSession") #to be able to see graph of how Networking code is implemented through app
+  return true if dest.include?("URLConnection")
   return false if dest.nil?
   return false if dest.start_with?("__") #ignore __block_literal
   return false unless /^(#{exclusion_prefixes})/.match(dest).nil?
