@@ -211,11 +211,11 @@ class ObjcFromFileHierarchyCreator
     definitely_singleton = ""
     if /[a-zA-Z]\.main/.match(file_line) != nil
       match_text = /(?<type_name>\w*.main)/.match(file_line)
-      definitely_singleton = match_text[:type_name]
+      definitely_singleton = match_text[:type_name].sub(/\s/,".") 
 
     elsif /[a-zA-Z]\.shared/.match(file_line) != nil
       match_text = /(?<type_name>\w*.shared)/.match(file_line) #this pattern will match AppSessionCoordinator shared and ANZAppSessionCoordinator.shared
-      definitely_singleton = match_text[:type_name].sub(/" "/,".") 
+      definitely_singleton = match_text[:type_name].sub(/\s/,".") 
       Logger.log_message "-----definitely_singleton: #{definitely_singleton}----"
 
     end
