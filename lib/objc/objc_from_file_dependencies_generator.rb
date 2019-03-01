@@ -81,12 +81,11 @@ class ObjcFromFileHierarchyCreator
       elsif current_node != nil #means in local scope of the @implementation
         #for each line in scope of @implementation ... @end, tokenize and find dependency
         if can_add_dependency(file_line)
-          if file_line.include?("\"") 
+          if /\"/.match(file_line) != nil 
             # if it was false because of double quotes then modify the line and extract dependencies
             # NSString *htmlErrorContent = [XXXFileReader contentsForFile:@"error" type:@"html" inBundle:[NSBundle mainBundle]]; <-- identify te singleton
-
             everything_between_double_quotes = /(["'])(\\?.)*?\1/
-            removed_double_quotes = file_line.sub(everything_between_double_quotes, '')
+            removed_double_quotes = file_line.gsub(everything_between_double_quotes, '')
             current_node.add_dependency(removed_double_quotes, true)          
           else
             current_node.add_dependency(file_line, true)

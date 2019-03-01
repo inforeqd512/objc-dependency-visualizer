@@ -329,7 +329,6 @@ class SwiftPrimitives
 end
 
 def is_primitive_swift_type?(dest)
-  $stderr.puts "-------dest: #{dest}-----------"
   SwiftPrimitives.primitive_types.include?(dest)
 end
 
