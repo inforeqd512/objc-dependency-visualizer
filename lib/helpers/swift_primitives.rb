@@ -306,7 +306,7 @@ class SwiftPrimitives
       'CrashReporting',
       'ConvertEvent',
       'HTTPConfig',
-      'IBAction',
+      'DynamicTypeSupport',
       'Grow',
       'AppID',
       'Decoder',
@@ -344,8 +344,9 @@ end
 def is_valid_dest?(dest, exclusion_prefixes)
   return true if dest.include?("URLSession") #to be able to see graph of how Networking code is implemented through app
   return true if dest.include?("URLConnection")
+  return true if dest.include?("CAR") #include CARAccounts etc even if CA is the exclusion prefix
   return false if dest.nil?
-  return false if dest.start_with?("__") #ignore __block_literal
+  return false if dest.start_with?("_") #ignore __block_literal, _main, 
   return false unless /^(#{exclusion_prefixes})/.match(dest).nil?
   return false if is_primitive_swift_type?(dest)
   return false if is_filtered_swift_type?(dest)

@@ -45,6 +45,11 @@ class ObjcFromFileHierarchyCreator
 
     implementation_file_lines(filename) do |file_line|
       Logger.log_message(file_line)
+
+      if file_line.include?("Users/")
+        return false
+      end
+
       #for static and global declarations, use the file name as default node
       #when see @interface then extract the protocols from it for the current node
       #when see @implementation then take the word after that as subclass
@@ -162,24 +167,31 @@ class ObjcFromFileHierarchyCreator
      #One way to ignore enum values?
         #ignore         case AccountsServiceScopeBanking
     if file_line.include?(" case ")  #enum case statement 
+      Logger.log_message("------ignore: case------")
       return false
     end
 
     if file_line.include?("//")  #comment #TODO - this implementation is incomplete as when the comment is inline with the code line, the code line will be ignored 
+      Logger.log_message("------ignore: //------")
       return false
     end
 
     #NSAssert
     #GeneralLogDebug
-    #Log
+    #ANZLog
+
     if file_line.include?("NSAssert") or
-      file_line.include?("Debug") or
-      file_line.include?("Log") 
+      file_line.include?("Debug") or #will capture ANZGeneralLogDebug
+      file_line.include?("OSLog") or
+      file_line.include?("ANZLog") or
+      file_line.include?("Log(")  #will capture NSLog(), VerboseLog()
+      Logger.log_message("------ignore: Log------")
       return false
     end
 
     if file_line.include?("NRFeatureFlag") #if string contains NewRelic settings
-        return false
+      Logger.log_message("------ignore: NRFeatureFlag------")
+      return false
     end
     return true
   end
@@ -203,8 +215,8 @@ class ObjcFromFileHierarchyCreator
       definitely_singleton = match_text[:type_name]
 
     elsif /[a-zA-Z]\.shared/.match(file_line) != nil
-      match_text = /(?<type_name>\w*.shared)/.match(file_line)
-      definitely_singleton = match_text[:type_name]
+      match_text = /(?<type_name>\w*.shared)/.match(file_line) #this pattern will match AppSessionCoordinator shared and ANZAppSessionCoordinator.shared
+      definitely_singleton = match_text[:type_name].sub(/" "/,".") 
       Logger.log_message "-----definitely_singleton: #{definitely_singleton}----"
 
     end
