@@ -200,7 +200,7 @@ class ASTHierarchyCreator
       if (file_line.include? "name:" and currently_seeing_tag.include? "_decl") or
         (file_line.include? "type:" and currently_seeing_tag.include? "ext_decl")
         name_match = subclass_name_regex.match(file_line) #extract subclass name 
-        name = name_match[0]
+        name = name_match[0].split(".")[0] #take only the first name from say for eg SpendTrackerState.Mood extension names
         subclass_name_found = true
 
         #find the node with the name and make it current, so that we avoid duplicates
