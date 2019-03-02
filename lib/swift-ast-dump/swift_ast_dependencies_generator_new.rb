@@ -1,5 +1,5 @@
 require 'helpers/hierarchy_helpers'
-require 'swift/swift_hierarchy_helpers'
+require 'swift-ast-dump/swift_hierarchy_helpers'
 
 class SwiftAstDependenciesGeneratorNew
 
