@@ -18,7 +18,7 @@ class DependencyTreeGenerator
     @options = options
     @options[:derived_data_project_pattern] = '*-*' unless @options[:derived_data_project_pattern]
 
-    @exclusion_prefixes = @options[:exclusion_prefixes] ? @options[:exclusion_prefixes] : 'NS|UI|CA|CG|CI|CF|IB'
+    @exclusion_prefixes = @options[:exclusion_prefixes] ? @options[:exclusion_prefixes] : 'NS|UI|CA|CG|CI|CF|CL|IB'
     @object_files_directories = @options[:search_directories]
   end
 

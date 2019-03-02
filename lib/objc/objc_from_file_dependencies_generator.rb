@@ -170,11 +170,17 @@ class ObjcFromFileHierarchyCreator
       return false
     end
 
-    if file_line.include?("//")  #comment #TODO - this implementation is incomplete as when the comment is inline with the code line, the code line will be ignored 
+    if file_line.include?("//")  #comment #TODO - this implementation is incomplete as when the comment at the end of line of code sentence, the code line will be ignored 
       Logger.log_message("------ignore: //------")
       return false
     end
 
+    if file_line.include?("const ")  #comment
+      Logger.log_message("------ignore: const ------")
+      return false
+    end
+
+  
     #NSAssert
     #GeneralLogDebug
     #ANZLog
