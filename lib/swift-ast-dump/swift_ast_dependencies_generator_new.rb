@@ -17,6 +17,7 @@ class SwiftAstDependenciesGeneratorNew
 
     @dependency = []
     astHierarchyCreator = ASTHierarchyCreator.new
+    final_line_count = 0
 
     Logger.log_message("--------generate_dependencies----------")
     folder_paths = swift_files_path_list(@swift_files_path, @swift_ignore_folders)
@@ -27,9 +28,10 @@ class SwiftAstDependenciesGeneratorNew
          filename.include?("DemoSupport") == false and
          filename.include?("DeveloperSupport") == false and
          filename.include?("TestSupport") == false and
-         filename.include?("Foundation/") == false and
-        swift_file_dependency_hierarchy = astHierarchyCreator.create_hierarchy(filename, @dependency)
+         filename.include?("Foundation/") == false 
+        swift_file_dependency_hierarchy, line_count = astHierarchyCreator.create_hierarchy(filename, @dependency)
         @dependency = swift_file_dependency_hierarchy
+        final_line_count = final_line_count + line_count
       end
     }
 
@@ -43,6 +45,8 @@ class SwiftAstDependenciesGeneratorNew
     end
 
     print_hierarchy(@dependency)
+    print_count (final_line_count)
+
   end
 end
 
@@ -56,21 +60,24 @@ class ASTHierarchyCreator
     dependency = dependency
     current_node = nil
 
+    line_count = 0
     is_swift_tag = /<range:/ #if the 'range' word appears then its a swift tag line
     maybe_singleton = ""
     maybe_singleton_file_line = ""
     currently_seeing_tag = ""
     subclass_name_for_global_decl = filename #for var_decl, const_decl in the global scope in .swift file, link it to just the file name for now #TODO - a better way to manage this
-    
+
     framework_name = framework_name(filename)
     language = language(filename)
+
     #class, protocol, property, category, return type, method parameter type, enum, struct
     ast_tags_in_file(filename) do |file_line|
 
       Logger.log_message file_line
+      line_count = line_count + 1
 
-#basic logic - when you see top level tags usually _decl, then till the next top level is seen, every word that begins with Capital letter is a dependency. 
-#               However, in the tag stack still keep track of all other child _decl so you can ignore ones having 'private' modifiers
+      #basic logic - when you see top level tags usually _decl, then till the next top level is seen, every word that begins with Capital letter is a dependency. 
+      #               However, in the tag stack still keep track of all other child _decl so you can ignore ones having 'private' modifiers
       
       second_level_tag_node_created = false
       if is_swift_tag.match(file_line) != nil #when <range: is present (means its a tag)
@@ -141,7 +148,7 @@ class ASTHierarchyCreator
       end
     end
 
-    return dependency
+    return dependency, line_count
 
   end
 

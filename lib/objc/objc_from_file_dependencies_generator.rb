@@ -13,11 +13,13 @@ class ObjcFromFileDependenciesGenerator
     Logger.log_message("-----header_and_implementation_file_paths: #{header_and_implementation_file_paths}----")
     @dependency = []
     hierarchyCreator = ObjcFromFileHierarchyCreator.new
+    final_line_count = 0
 
     header_and_implementation_file_paths.each {|filename| 
         Logger.log_message("\n\n----filename: #{filename}")
-        dependency_hierarchy = hierarchyCreator.create_hierarchy(filename, @dependency)
+        dependency_hierarchy, line_count = hierarchyCreator.create_hierarchy(filename, @dependency)
         @dependency = dependency_hierarchy
+        final_line_count = final_line_count + line_count
     }
 
         #yield source and destination to create a tree
@@ -30,7 +32,8 @@ class ObjcFromFileDependenciesGenerator
     end
 
     print_hierarchy(@dependency)
-
+    print_count (final_line_count)
+    
   end
 end
 
@@ -46,9 +49,11 @@ class ObjcFromFileHierarchyCreator
 
     framework_name = framework_name(filename)
     language = language(filename)
+    line_count = 0
 
     implementation_file_lines(filename) do |file_line|
       Logger.log_message(file_line)
+      line_count = line_count + 1
 
       if file_line.include?("Users/")
         return false
@@ -104,7 +109,7 @@ class ObjcFromFileHierarchyCreator
 
     end
 
-    return dependency
+    return dependency, line_count
   end
 
   def update_subclass_superclass_protocol_names(language, framework_name, file_line, current_node, dependency)

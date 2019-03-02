@@ -160,6 +160,11 @@ def find_node (name, node_list)
   return found_node
 end
 
+def print_count (final_line_count)
+  Logger.log_message("\n\n\n\n\n\n\n\n\n\n\n\n--------------final_line_count--------------------------")
+  Logger.log_message("-----final_line_count: #{final_line_count}-----\n\n\n\n\n")
+end
+
 def print_hierarchy (dependency)
   Logger.log_message("\n\n\n\n\n\n\n\n\n\n\n\n--------------print_hierarchy--------------------------")
   dependency.each { |dependency_hierarchy_node|
