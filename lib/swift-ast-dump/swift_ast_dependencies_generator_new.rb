@@ -34,11 +34,11 @@ class SwiftAstDependenciesGeneratorNew
     }
 
     #yield source and destination to create a tree
-    pair_source_dest(@dependency) do  |source, source_type, dest, dest_type, link_type|
+    pair_source_dest(@dependency) do  |framework, source, source_type, dest, dest_type, link_type|
       if @sigmajs
         yield source, dest
       else
-        yield source, source_type, dest, dest_type, link_type
+        yield framework, source, source_type, dest, dest_type, link_type
       end
     end
 
@@ -62,6 +62,7 @@ class ASTHierarchyCreator
     currently_seeing_tag = ""
     subclass_name_for_global_decl = filename #for var_decl, const_decl in the global scope in .swift file, link it to just the file name for now #TODO - a better way to manage this
     
+    framework_name = framework_name(filename)
     #class, protocol, property, category, return type, method parameter type, enum, struct
     ast_tags_in_file(filename) do |file_line|
 
@@ -116,6 +117,7 @@ class ASTHierarchyCreator
       
         #subclass, protocol, extension name - this works as the subclass will be updated only if it was nil before.. 
         current_node, subclass_name_found = subclass_name(file_line, currently_seeing_tag, current_node, dependency)
+        current_node.add_framework_name(framework_name)
 
         #superclass or protocol name
         if subclass_name_found == false #if this file line has not already passed the above subclass check

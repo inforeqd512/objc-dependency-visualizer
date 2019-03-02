@@ -1,4 +1,5 @@
 require 'helpers/logger'
+require 'helpers/hierarchy_helpers'
 
 #since all info cannot be gained from dwarfdump file eg sharedInstance (Singleton), and static methods of other classes, other dependencies being referenced from inside a method eg view models 
 #So looking at the .m files instead
@@ -20,11 +21,11 @@ class ObjcFromFileDependenciesGenerator
     }
 
         #yield source and destination to create a tree
-    pair_source_dest(@dependency) do  |source, source_type, dest, dest_type, link_type|
+    pair_source_dest(@dependency) do  |framework, source, source_type, dest, dest_type, link_type|
       if @sigmajs
         yield source, dest
       else
-        yield source, source_type, dest, dest_type, link_type
+        yield framework, source, source_type, dest, dest_type, link_type
       end
     end
 
@@ -42,6 +43,8 @@ class ObjcFromFileHierarchyCreator
     current_node = nil
     global_node = DependencyHierarchyNode.new
     multiline_comment_ignore = false
+
+    framework_name = framework_name(filename)
 
     implementation_file_lines(filename) do |file_line|
       Logger.log_message(file_line)
@@ -68,7 +71,7 @@ class ObjcFromFileHierarchyCreator
       # queue:[NSOperationQueue mainQueue]
 
       #when see @implementation then take the word after that as subclass
-      decl_start_line_found, current_node = update_subclass_superclass_protocol_names(file_line, current_node, dependency)
+      decl_start_line_found, current_node = update_subclass_superclass_protocol_names(framework_name, file_line, current_node, dependency)
 
       if decl_start_line_found == true 
         # ignore as the above method has processed it 
@@ -103,7 +106,7 @@ class ObjcFromFileHierarchyCreator
     return dependency
   end
 
-  def update_subclass_superclass_protocol_names(file_line, current_node, dependency)
+  def update_subclass_superclass_protocol_names(framework_name, file_line, current_node, dependency)
 
     decl_start_line_found = false
     if file_line.include?("@interface") or
@@ -113,7 +116,7 @@ class ObjcFromFileHierarchyCreator
 
       if subclass_name.length > 0 
         Logger.log_message("---------subclass: #{subclass_name}--------")
-        current_node = find_or_create_hierarchy_node_and_update_dependency(subclass_name, current_node, dependency)
+        current_node = find_or_create_hierarchy_node_and_update_dependency(framework_name, subclass_name, current_node, dependency)
         if current_node.subclass.length == 0 #when new node created
           current_node.subclass = subclass_name
         end
@@ -216,11 +219,11 @@ class ObjcFromFileHierarchyCreator
     # 0: displayScale: CGFloat = UIScreen.main.scale
     definitely_singleton = ""
     if /[a-zA-Z]\.main/.match(file_line) != nil
-      match_text = /(?<type_name>\w*.main)/.match(file_line)
+      match_text = /(?<type_name>\w+\.*\s*main)/.match(file_line)
       definitely_singleton = match_text[:type_name].sub(/\s/,".") 
 
     elsif /[a-zA-Z]\.shared/.match(file_line) != nil
-      match_text = /(?<type_name>\w*.shared)/.match(file_line) #this pattern will match AppSessionCoordinator shared and ANZAppSessionCoordinator.shared
+      match_text = /(?<type_name>\w+\.*\s*shared)/.match(file_line) #this pattern will match AppSessionCoordinator shared and ANZAppSessionCoordinator.shared
       definitely_singleton = match_text[:type_name].sub(/\s/,".") 
       Logger.log_message "-----definitely_singleton: #{definitely_singleton}----"
 
@@ -237,7 +240,7 @@ class ObjcFromFileHierarchyCreator
     end
   end
 
-  def find_or_create_hierarchy_node_and_update_dependency(subclass_name, current_node, dependency)
+  def find_or_create_hierarchy_node_and_update_dependency(framework_name, subclass_name, current_node, dependency)
     existing_node = find_node(subclass_name, dependency)
     if existing_node == nil
       current_node = DependencyHierarchyNode.new
@@ -247,6 +250,7 @@ class ObjcFromFileHierarchyCreator
       current_node = existing_node
       Logger.log_message("--------existing node found in dependency : #{current_node}------")
     end
+    current_node.add_framework_name(framework_name)
 
     return current_node
   end

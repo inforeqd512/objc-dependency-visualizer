@@ -53,15 +53,15 @@ class TreeSerializer
   end
 
   def serialize_to_csv()
-    node = @dependency_tree.node_csv_array #[{name: id}]
+    node = @dependency_tree.node_csv_array #[{name: {"id":1}}]
     edge = @dependency_tree.edge_csv_array #[{source ,target, type}]
     CSV.open("edge.csv", "wb") {|csv| 
       csv << ["Source", "Target", "Type"]
       edge.each {|hash| csv << [hash["source"], hash["target"], hash["type"]] } 
     }
     CSV.open("node.csv", "wb") {|csv| 
-      csv << ["Id", "Label"]
-      node.each {|key, value| csv << [value, key] }
+      csv << ["Id", "Label", "Framework"]
+      node.each {|key, value| csv << [value["id"], key, value["framework"]] }
     }
   end
 

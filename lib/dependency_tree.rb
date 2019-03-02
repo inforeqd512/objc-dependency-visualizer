@@ -42,9 +42,9 @@ class DependencyTree
  
   #method to add source and dest details
 
-  def add(source, dest, source_type = DependencyItemType::UNKNOWN, dest_type = DependencyItemType::UNKNOWN, link_type = DependencyItemType::UNKNOWN)
+  def add(framework, source, dest, source_type = DependencyItemType::UNKNOWN, dest_type = DependencyItemType::UNKNOWN, link_type = DependencyItemType::UNKNOWN)
 
-    csv_display(source, dest, source_type, dest_type, link_type)
+    csv_display(framework, source, dest, source_type, dest_type, link_type)
     
   end
 
@@ -67,25 +67,29 @@ class DependencyTree
   #
   #
   #
-  def csv_display(source, target, source_type, dest_type, link_type)
+  def csv_display(source_framework, source, target, source_type, dest_type, link_type)
     link_key = link_key(source, target)
     if @links_registry_csv.key?(link_key)
       #link exists so dont add link
     else
       if !@node_csv.key?(source)
         @id_generator_csv = @id_generator_csv + 1
-        @node_csv[source] = @id_generator_csv #{source_class_name => id}
+        @node_csv[source] = { "id" => @id_generator_csv } #{source_class_name => id, "framework" => UIKit}
       end
   
       if !@node_csv.key?(target)
         @id_generator_csv = @id_generator_csv + 1
-        @node_csv[target] = @id_generator_csv
+        @node_csv[target] = { "id" => @id_generator_csv }
+      end
+
+      if source_framework.length > 0
+        @node_csv[source]["framework"] = source_framework #add the framework for the source (ie. subclass framework)
       end
 
       #add link
       @links_registry_csv[link_key] = true
-      source_id = @node_csv[source]
-      target_id = @node_csv[target]
+      source_id = @node_csv[source]["id"]
+      target_id = @node_csv[target]["id"]
       type = "Directed"
   
       edge = { "source" => source_id, "target" => target_id,  "type" => "Directed"}
@@ -106,7 +110,7 @@ class DependencyTree
     $stderr.puts "------------nodes_to_remove----------"
     $stderr.puts "#{nodes_to_remove}\n\n\n\n"
     nodes_to_remove.each { |key, value| @node_csv.delete(key) }
-    nodes_to_remove.each { |key, value| @edge_csv.delete_if { |edge| edge["source"] == value || edge["target"] == value } }
+    nodes_to_remove.each { |key, value| @edge_csv.delete_if { |edge| edge["source"] == value["id"] || edge["target"] == value["id"] } }
     nodes_to_remove.each { |key, value| @links_registry_csv.delete_if { |link_key, value| link_key.include?(key) } }
     $stderr.puts "------------node_csv----------"
     $stderr.puts "#{@node_csv}\n\n\n\n"

@@ -55,12 +55,18 @@ class Stack
 end
 
 class DependencyHierarchyNode
-  attr_accessor :subclass, :superclass_or_protocol, :dependency
+  attr_accessor :subclass, :superclass_or_protocol, :dependency, :framework
 
   def initialize
     @subclass = ""
     @superclass_or_protocol = Set.new #unique entries for super classes and protocols
     @dependency = Set.new #unique entries for dependent classes
+    @framework = "framework"
+  end
+
+  def add_framework_name (framework_name)
+    Logger.log_message("-------framework_name:#{framework_name}--------")
+    @framework = framework_name
   end
 
   def add_polymorphism (superclass_or_protocol_name_line)
@@ -160,26 +166,44 @@ def print_hierarchy (dependency)
     dependency_hierarchy_node.dependency.each { |node|
       Logger.log_message("-----dependency: #{node}-----")
     }
+    Logger.log_message("-----framework: #{dependency_hierarchy_node.framework}-----")
   }
 end
 
 def pair_source_dest (dependency)
   dependency.each { |dependency_hierarchy_node|
     if dependency_hierarchy_node.subclass.length > 0 #subclasses are nil for top level var_decl, const_decl
+
       if dependency_hierarchy_node.superclass_or_protocol.count > 0 #ignore Apple's classes. some how even with this, the classes and structs declared in swift with no inheritance still come through
         dependency_hierarchy_node.superclass_or_protocol.each { |name| #when no superclass means the Sublass is apples classes, ignore them
-          yield name, dependency_hierarchy_node.subclass, DependencyItemType::CLASS, DependencyItemType::CLASS, DependencyLinkType::INHERITANCE
+          yield "", name, dependency_hierarchy_node.subclass, DependencyItemType::CLASS, DependencyItemType::CLASS, DependencyLinkType::INHERITANCE
         }
       end
-      dependency_hierarchy_node.dependency.each { |node|
-        yield dependency_hierarchy_node.subclass, node, DependencyItemType::CLASS, DependencyItemType::CLASS, DependencyLinkType::CALL
+      dependency_hierarchy_node.dependency.each { |dependency|
+        yield dependency_hierarchy_node.framework, dependency_hierarchy_node.subclass, dependency, DependencyItemType::CLASS, DependencyItemType::CLASS, DependencyLinkType::CALL
       }
     end
 
   }
 end
 
+def framework_name (filename)
+  Logger.log_message("-------framework filename:#{filename}---------")
+  framework_name = ""
+  if filename.include?("Frameworks")
+    framework_name_regex = /Frameworks\/(?<framework_name>\w+)/
+    name_match = framework_name_regex.match(filename) #extract framework name 
+    framework_name = name_match[:framework_name]
+    Logger.log_message("------framework_name in func Frameworks: #{framework_name}--------")
+  else
+    framework_name_regex = /github\/(?<framework_name>.*)\//
+    name_match = framework_name_regex.match(filename) #extract framework name 
+    framework_name = name_match[:framework_name]
+    Logger.log_message("------framework_name in func Sources: #{framework_name}--------")
+  end
 
+  return framework_name
+end
 
 
 
