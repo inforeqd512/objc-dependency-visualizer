@@ -126,7 +126,7 @@ class ASTHierarchyCreator
         #subclass, protocol, extension name - this works as the subclass will be updated only if it was nil before.. 
         current_node, subclass_name_found = subclass_name(file_line, currently_seeing_tag, current_node, dependency)
         current_node.add_framework_name(framework_name)
-        current_node.add_lanugage(language)
+        current_node.add_language(language)
         
         #superclass or protocol name
         if subclass_name_found == false #if this file line has not already passed the above subclass check
