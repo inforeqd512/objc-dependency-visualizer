@@ -133,7 +133,7 @@ class DependencyTreeGenerator
 
     return tree if !@options || @options.empty?
 
-    update_tree_block = lambda { |framework, source, source_type, dest, dest_type, link_type| tree.add(framework, source, source_type, dest, dest_type, link_type) } 
+    update_tree_block = lambda { |language, framework, source, source_type, dest, dest_type, link_type| tree.add(language, framework, source, source_type, dest, dest_type, link_type) } 
 
     if @options[:output_format].include?("sigmajs")
       update_tree_block = lambda { |source, source_type, dest, dest_type, link_type| tree.add_sigmajs(source, source_type, dest, dest_type, link_type) } 

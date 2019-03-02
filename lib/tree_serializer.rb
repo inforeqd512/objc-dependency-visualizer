@@ -60,8 +60,8 @@ class TreeSerializer
       edge.each {|hash| csv << [hash["source"], hash["target"], hash["type"]] } 
     }
     CSV.open("node.csv", "wb") {|csv| 
-      csv << ["Id", "Label", "Framework"]
-      node.each {|key, value| csv << [value["id"], key, value["framework"]] }
+      csv << ["Id", "Label", "Framework", "Language"]
+      node.each {|key, value| csv << [value["id"], key, value["framework"], value["language"]] }
     }
   end
 

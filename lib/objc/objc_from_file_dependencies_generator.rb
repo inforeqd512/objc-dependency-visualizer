@@ -21,11 +21,11 @@ class ObjcFromFileDependenciesGenerator
     }
 
         #yield source and destination to create a tree
-    pair_source_dest(@dependency) do  |framework, source, source_type, dest, dest_type, link_type|
+    pair_source_dest(@dependency) do  |language, framework, source, source_type, dest, dest_type, link_type|
       if @sigmajs
         yield source, dest
       else
-        yield framework, source, source_type, dest, dest_type, link_type
+        yield language, framework, source, source_type, dest, dest_type, link_type
       end
     end
 
@@ -45,6 +45,7 @@ class ObjcFromFileHierarchyCreator
     multiline_comment_ignore = false
 
     framework_name = framework_name(filename)
+    language = language(filename)
 
     implementation_file_lines(filename) do |file_line|
       Logger.log_message(file_line)
@@ -71,7 +72,7 @@ class ObjcFromFileHierarchyCreator
       # queue:[NSOperationQueue mainQueue]
 
       #when see @implementation then take the word after that as subclass
-      decl_start_line_found, current_node = update_subclass_superclass_protocol_names(framework_name, file_line, current_node, dependency)
+      decl_start_line_found, current_node = update_subclass_superclass_protocol_names(language, framework_name, file_line, current_node, dependency)
 
       if decl_start_line_found == true 
         # ignore as the above method has processed it 
@@ -106,7 +107,7 @@ class ObjcFromFileHierarchyCreator
     return dependency
   end
 
-  def update_subclass_superclass_protocol_names(framework_name, file_line, current_node, dependency)
+  def update_subclass_superclass_protocol_names(language, framework_name, file_line, current_node, dependency)
 
     decl_start_line_found = false
     if file_line.include?("@interface") or
@@ -116,7 +117,7 @@ class ObjcFromFileHierarchyCreator
 
       if subclass_name.length > 0 
         Logger.log_message("---------subclass: #{subclass_name}--------")
-        current_node = find_or_create_hierarchy_node_and_update_dependency(framework_name, subclass_name, current_node, dependency)
+        current_node = find_or_create_hierarchy_node_and_update_dependency(language, framework_name, subclass_name, current_node, dependency)
         if current_node.subclass.length == 0 #when new node created
           current_node.subclass = subclass_name
         end
@@ -240,7 +241,7 @@ class ObjcFromFileHierarchyCreator
     end
   end
 
-  def find_or_create_hierarchy_node_and_update_dependency(framework_name, subclass_name, current_node, dependency)
+  def find_or_create_hierarchy_node_and_update_dependency(language, framework_name, subclass_name, current_node, dependency)
     existing_node = find_node(subclass_name, dependency)
     if existing_node == nil
       current_node = DependencyHierarchyNode.new
@@ -251,6 +252,7 @@ class ObjcFromFileHierarchyCreator
       Logger.log_message("--------existing node found in dependency : #{current_node}------")
     end
     current_node.add_framework_name(framework_name)
+    current_node.add_language(language)
 
     return current_node
   end

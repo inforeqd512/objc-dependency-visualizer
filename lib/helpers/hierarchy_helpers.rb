@@ -55,18 +55,24 @@ class Stack
 end
 
 class DependencyHierarchyNode
-  attr_accessor :subclass, :superclass_or_protocol, :dependency, :framework
+  attr_accessor :subclass, :superclass_or_protocol, :dependency, :framework, :language
 
   def initialize
     @subclass = ""
     @superclass_or_protocol = Set.new #unique entries for super classes and protocols
     @dependency = Set.new #unique entries for dependent classes
-    @framework = "framework"
+    @framework = ""
+    @language = ""
   end
 
   def add_framework_name (framework_name)
     Logger.log_message("-------framework_name:#{framework_name}--------")
     @framework = framework_name
+  end
+
+  def add_language (language)
+    Logger.log_message("-------language:#{language}--------")
+    @language = language
   end
 
   def add_polymorphism (superclass_or_protocol_name_line)
@@ -167,6 +173,7 @@ def print_hierarchy (dependency)
       Logger.log_message("-----dependency: #{node}-----")
     }
     Logger.log_message("-----framework: #{dependency_hierarchy_node.framework}-----")
+    Logger.log_message("-----language: #{dependency_hierarchy_node.language}-----")
   }
 end
 
@@ -176,11 +183,11 @@ def pair_source_dest (dependency)
 
       if dependency_hierarchy_node.superclass_or_protocol.count > 0 #ignore Apple's classes. some how even with this, the classes and structs declared in swift with no inheritance still come through
         dependency_hierarchy_node.superclass_or_protocol.each { |name| #when no superclass means the Sublass is apples classes, ignore them
-          yield "", name, dependency_hierarchy_node.subclass, DependencyItemType::CLASS, DependencyItemType::CLASS, DependencyLinkType::INHERITANCE
+          yield "", "", name, dependency_hierarchy_node.subclass, DependencyItemType::CLASS, DependencyItemType::CLASS, DependencyLinkType::INHERITANCE
         }
       end
       dependency_hierarchy_node.dependency.each { |dependency|
-        yield dependency_hierarchy_node.framework, dependency_hierarchy_node.subclass, dependency, DependencyItemType::CLASS, DependencyItemType::CLASS, DependencyLinkType::CALL
+        yield dependency_hierarchy_node.language, dependency_hierarchy_node.framework, dependency_hierarchy_node.subclass, dependency, DependencyItemType::CLASS, DependencyItemType::CLASS, DependencyLinkType::CALL
       }
     end
 
@@ -203,6 +210,21 @@ def framework_name (filename)
   end
 
   return framework_name
+end
+
+def language (filename)
+  Logger.log_message("-------language filename:#{filename}---------")
+  language = ""
+  if filename.include?(".m") or
+    filename.include?(".h")
+    language = "objc"
+    Logger.log_message("------language in func .m/.h: #{language}--------")
+  elsif filename.include?(".swift")
+    language = "swift"
+    Logger.log_message("------language in func swift: #{language}--------")
+  end
+
+  return language
 end
 
 

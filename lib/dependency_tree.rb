@@ -42,9 +42,9 @@ class DependencyTree
  
   #method to add source and dest details
 
-  def add(framework, source, dest, source_type = DependencyItemType::UNKNOWN, dest_type = DependencyItemType::UNKNOWN, link_type = DependencyItemType::UNKNOWN)
+  def add(language, framework, source, dest, source_type = DependencyItemType::UNKNOWN, dest_type = DependencyItemType::UNKNOWN, link_type = DependencyItemType::UNKNOWN)
 
-    csv_display(framework, source, dest, source_type, dest_type, link_type)
+    csv_display(language, framework, source, dest, source_type, dest_type, link_type)
     
   end
 
@@ -67,7 +67,7 @@ class DependencyTree
   #
   #
   #
-  def csv_display(source_framework, source, target, source_type, dest_type, link_type)
+  def csv_display(language, source_framework, source, target, source_type, dest_type, link_type)
     link_key = link_key(source, target)
     if @links_registry_csv.key?(link_key)
       #link exists so dont add link
@@ -82,8 +82,12 @@ class DependencyTree
         @node_csv[target] = { "id" => @id_generator_csv }
       end
 
-      if source_framework.length > 0
+      if source_framework.length > 0 #TODO: this check will happen for each of the dependency
         @node_csv[source]["framework"] = source_framework #add the framework for the source (ie. subclass framework)
+      end
+
+      if language.length > 0
+        @node_csv[source]["language"] = language #add the language for the source (ie. subclass language = objc/swift)
       end
 
       #add link
