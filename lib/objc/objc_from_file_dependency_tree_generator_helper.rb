@@ -1,5 +1,5 @@
-require 'set'
 require 'helpers/logger'
+require 'helpers/configuration'
 
 def find_objc_implementation_files(project_root_folder_path)
 
@@ -12,30 +12,9 @@ def find_objc_implementation_files(project_root_folder_path)
         paths << line
         end
     }
-
-    paths_to_ignore = 
-    ["Content",
-    "Demo",
-    "DerivedData",
-    "Documentation",
-    "fastlane",
-    "scripts",
-    "Specs",
-    "Tests",
-    "Tools",
-    "UITests",
-    "UITestsSIT",
-    "UITestsSITEnergy",
-    "vendor",
-    "Pods", 
-    "DemoSupport", 
-    "DeveloperSupport", 
-    "TestSupport", 
-    "Foundation/",
-    "Reachability",
-    "Mock"]
-    final_paths = paths.reject{|path| paths_to_ignore.any?{|word| path.include?(word)}}
+    final_paths = final_paths(paths)
     Logger.log_message("-----------final_paths: #{final_paths}----------------------")
+    Logger.log_message("\n\n\n\n")
 
     final_paths.sort! #to have .h and .m one after another
     return final_paths

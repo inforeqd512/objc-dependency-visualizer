@@ -5,9 +5,8 @@ class SwiftAstDependenciesGeneratorNew
 
   attr_reader :dependency
 
-  def initialize(swift_files_path, swift_ignore_folders, swift_ast_show_parsed_tree, verbose = false, sigmajs)
-    @swift_files_path = swift_files_path
-    @swift_ignore_folders = swift_ignore_folders
+  def initialize(project_root_folder_path, swift_ast_show_parsed_tree, verbose = false, sigmajs)
+    @project_root_folder_path = project_root_folder_path
     @verbose = verbose
     @dump_parsed_tree = swift_ast_show_parsed_tree
     @sigmajs = sigmajs
@@ -15,24 +14,19 @@ class SwiftAstDependenciesGeneratorNew
 
   def generate_dependencies
 
+    Logger.log_message("-----project_root_folder_path: #{@project_root_folder_path}----")
     @dependency = []
     astHierarchyCreator = ASTHierarchyCreator.new
     final_line_count = 0
 
     Logger.log_message("--------generate_dependencies----------")
-    folder_paths = swift_files_path_list(@swift_files_path, @swift_ignore_folders)
-    swift_files_list = swift_files_list(folder_paths)
+    swift_files_list = find_swift_files(@project_root_folder_path)
 
     swift_files_list.each { |filename| 
-      if filename.include?("Tests") == false and #exclude file paths to Tests in frameworks or subfolders
-         filename.include?("DemoSupport") == false and
-         filename.include?("DeveloperSupport") == false and
-         filename.include?("TestSupport") == false and
-         filename.include?("Foundation/") == false 
-        swift_file_dependency_hierarchy, line_count = astHierarchyCreator.create_hierarchy(filename, @dependency)
-        @dependency = swift_file_dependency_hierarchy
-        final_line_count = final_line_count + line_count
-      end
+      Logger.log_message("\n\n----filename: #{filename}")
+      swift_file_dependency_hierarchy, line_count = astHierarchyCreator.create_hierarchy(filename, @dependency)
+      @dependency = swift_file_dependency_hierarchy
+      final_line_count = final_line_count + line_count
     }
 
     #yield source and destination to create a tree

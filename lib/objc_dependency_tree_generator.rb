@@ -12,6 +12,8 @@ require 'sourcekitten/sourcekitten_dependencies_generator'
 require 'dependency_tree'
 require 'dependency_tree_sigmajs'
 require 'tree_serializer'
+require 'helpers/logger'
+
 
 class DependencyTreeGenerator
   def initialize(options)
@@ -53,13 +55,6 @@ class DependencyTreeGenerator
       end
       o.on('-e PREFIXES', "Prefixes of classes those will be exсluded from visualization. \n\t\t\t\t\tNS|UI\n\t\t\t\t\tUI|CA|MF") do |exclusion_prefixes|
         options[:exclusion_prefixes] = exclusion_prefixes
-      end
-      o.on('--swift-files SWIFT_FILES_PATH', "Path to swift files") do |swift_files_path|
-           $stderr.puts "------#{swift_files_path}-----"
-        options[:swift_files_path] = swift_files_path
-      end
-      o.on('--swift-ignore SWIFT_IGNORE_FOLDERS', Array, "Folders to ignore when searching for swift files eg x,y,z") do |swift_ignore_folders|
-        options[:swift_ignore_folders] = swift_ignore_folders
       end
       o.on('-k FILENAME', 'Generate dependencies from source kitten output (json)') do |v|
         options[:sourcekitten_dependencies_file] = v
@@ -145,6 +140,21 @@ class DependencyTreeGenerator
       file_paths = find_objc_implementation_files(@options[:project_root_path])
       return tree unless file_paths
       ObjcFromFileDependenciesGenerator.new.generate_dependencies(file_paths, &update_tree_block)
+
+      $stderr.puts "\n\n--------------swift file enter--------------"
+      generator = SwiftAstDependenciesGeneratorNew.new(
+        @options[:project_root_path],
+        @options[:swift_ast_show_parsed_tree],
+        @options[:sigmajs]
+      )
+      if @options[:sigmajs]
+        $stderr.puts "\n\n--------------swift enter: sigmajs--------------"
+        generator.generate_dependencies(&update_tree_block_sigmajs)        
+      else
+        $stderr.puts "\n\n--------------swift .swift file list enter--------------"
+        generator.generate_dependencies(&update_tree_block)
+      end
+
     end
 
     if @options[:derived_data_paths]
@@ -153,22 +163,7 @@ class DependencyTreeGenerator
       return tree unless @object_files_directories
       ObjcDependenciesGenerator.new.generate_dependencies(@object_files_directories, &update_tree_block)
     end
-
-    if @options[:swift_files_path]
-      generator = SwiftAstDependenciesGeneratorNew.new(
-        @options[:swift_files_path],
-        @options[:swift_ignore_folders],
-        @options[:swift_ast_show_parsed_tree],
-        @options[:sigmajs]
-      )
-      if @options[:sigmajs]
-        $stderr.puts "\n\n--------------swift enter: sigmajs--------------"
-        generator.generate_dependencies(&update_tree_block_sigmajs)        
-      else
-        generator.generate_dependencies(&update_tree_block)
-      end
-    end
-
+  
     tree
   end  
 
