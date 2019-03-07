@@ -67,7 +67,7 @@ class DependencyTree
   #
   #
   #
-  def csv_display(language, source_framework, source, target, source_type, dest_type, link_type)
+  def csv_display(target_language, target_framework, source, target, source_type, dest_type, link_type)
     link_key = link_key(source, target)
     if @links_registry_csv.key?(link_key)
       #link exists so dont add link
@@ -82,12 +82,12 @@ class DependencyTree
         @node_csv[target] = { "id" => @id_generator_csv }
       end
 
-      if source_framework.length > 0 #TODO: this check will happen for each of the dependency
-        @node_csv[source]["framework"] = source_framework #add the framework for the source (ie. subclass framework)
+      if target_framework.length > 0 #TODO: this check will happen for each of the dependency. Can we reduce it to only when it's for the subclass
+        @node_csv[target]["framework"] = target_framework #add the framework for the source (ie. subclass framework)
       end
 
-      if language.length > 0
-        @node_csv[source]["language"] = language #add the language for the source (ie. subclass language = objc/swift)
+      if target_language.length > 0
+        @node_csv[target]["language"] = target_language #add the language for the target subclass only (ie. subclass language = objc/swift)
       end
 
       #add link

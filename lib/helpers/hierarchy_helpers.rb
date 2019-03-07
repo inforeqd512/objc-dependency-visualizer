@@ -188,11 +188,11 @@ def pair_source_dest (dependency)
 
       if dependency_hierarchy_node.superclass_or_protocol.count > 0 #ignore Apple's classes. some how even with this, the classes and structs declared in swift with no inheritance still come through
         dependency_hierarchy_node.superclass_or_protocol.each { |name| #when no superclass means the Sublass is apples classes, ignore them
-          yield "", "", name, dependency_hierarchy_node.subclass, DependencyItemType::CLASS, DependencyItemType::CLASS, DependencyLinkType::INHERITANCE
+          yield dependency_hierarchy_node.language, dependency_hierarchy_node.framework, name, dependency_hierarchy_node.subclass, DependencyItemType::CLASS, DependencyItemType::CLASS, DependencyLinkType::INHERITANCE
         }
       end
       dependency_hierarchy_node.dependency.each { |dependency|
-        yield dependency_hierarchy_node.language, dependency_hierarchy_node.framework, dependency_hierarchy_node.subclass, dependency, DependencyItemType::CLASS, DependencyItemType::CLASS, DependencyLinkType::CALL
+        yield "", "", dependency_hierarchy_node.subclass, dependency, DependencyItemType::CLASS, DependencyItemType::CLASS, DependencyLinkType::CALL
       }
     end
 
