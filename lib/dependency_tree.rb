@@ -83,11 +83,17 @@ class DependencyTree
       end
 
       if target_framework.length > 0 #TODO: this check will happen for each of the dependency. Can we reduce it to only when it's for the subclass
-        @node_csv[target]["framework"] = target_framework #add the framework for the source (ie. subclass framework)
+        #TODO: for now only initialise if it doesn't contain any value. This will miss categorising those that have say ObjC subclasses, but have Swift categories/extensions.
+        #Doing this so that once this value is set based on the fact that it's 
+        if @node_csv[target]["framework"] == nil  
+          @node_csv[target]["framework"] = target_framework #add the framework for the source (ie. subclass framework)
+        end
       end
 
       if target_language.length > 0
-        @node_csv[target]["language"] = target_language #add the language for the target subclass only (ie. subclass language = objc/swift)
+        if @node_csv[target]["language"] == nil #TODO: for now only initialise if it doesn't contain any value. This will miss categorising those that have say ObjC subclasses, but have Swift categories/extensions
+          @node_csv[target]["language"] = target_language #add the language for the target subclass only (ie. subclass language = objc/swift)
+        end
       end
 
       #add link
