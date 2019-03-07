@@ -148,6 +148,8 @@ class SwiftPrimitives
       'Int8',
       'JoinGenerator',
       'JoinSequence',
+      'JSONDecoder',
+      'JSONEncoder',
       'Key',
       'Keys',
       'LazyCollection',
