@@ -91,11 +91,16 @@ class ObjcFromFileHierarchyCreator
         #for each line in scope of @implementation ... @end, tokenize and find dependency
         if can_add_dependency(file_line)
           if /\"/.match(file_line) != nil 
-            # if it was false because of double quotes then modify the line and extract dependencies
+            # if the line contains strings in double quotes then modify the line and extract dependencies
             # NSString *htmlErrorContent = [XXXFileReader contentsForFile:@"error" type:@"html" inBundle:[NSBundle mainBundle]]; <-- identify te singleton
             everything_between_double_quotes = /(["'])(\\?.)*?\1/
             removed_double_quotes = file_line.gsub(everything_between_double_quotes, '')
             current_node.add_dependency(removed_double_quotes, true)          
+          elsif file_line.include?("//") == true #if the line contains comments esp those at end of file, then split on comment line and add dependencies
+            substring_till_start_of_comment = file_line.split("//").first
+            if substring_till_start_of_comment != nil
+              current_node.add_dependency(substring_till_start_of_comment, true)
+            end
           else
             current_node.add_dependency(file_line, true)
           end
@@ -176,11 +181,6 @@ class ObjcFromFileHierarchyCreator
         #ignore         case AccountsServiceScopeBanking
     if file_line.include?(" case ")  #enum case statement 
       Logger.log_message("------ignore: case------")
-      return false
-    end
-
-    if file_line.include?("//")  #comment #TODO - this implementation is incomplete as when the comment at the end of line of code sentence, the code line will be ignored 
-      Logger.log_message("------ignore: //------")
       return false
     end
 
