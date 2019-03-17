@@ -107,8 +107,8 @@ class DependencyTree
     end
   end
 
-  def node_csv_array
-    @node_csv
+  def node_csv_hash
+    @node_csv #{"name": {"id":1, "framework": "Banking", "language": "objc"}}
   end
 
   def edge_csv_array
@@ -116,12 +116,11 @@ class DependencyTree
   end
 
   def csv_filter (block = Proc.new)
-    nodes_to_remove = @node_csv.select { |key, value| block.call(key, DependencyItemType::UNKNOWN) == false} 
-    $stderr.puts "------------nodes_to_remove----------"
-    $stderr.puts "#{nodes_to_remove}\n\n\n\n"
-    nodes_to_remove.each { |key, value| @node_csv.delete(key) }
-    nodes_to_remove.each { |key, value| @edge_csv.delete_if { |edge| edge["source"] == value["id"] || edge["target"] == value["id"] } }
-    nodes_to_remove.each { |key, value| @links_registry_csv.delete_if { |link_key, value| link_key.include?(key) } }
+    nodes_to_remove_valid_dest_check = @node_csv.select { |key, value| block.call(key, DependencyItemType::UNKNOWN) == false} 
+    nodes_to_remove = nodes_to_remove_valid_dest_check
+    # nodes_to_remove_protocols_const_enums = remove_nodes_protocols_const_enums(@node_csv)
+    # nodes_to_remove = nodes_to_remove_valid_dest_check.merge(nodes_to_remove_protocols_const_enums) #merge the two hash 
+    remove_nodes(nodes_to_remove)
     $stderr.puts "------------node_csv----------"
     $stderr.puts "#{@node_csv}\n\n\n\n"
     $stderr.puts "------------edge_csv----------"
@@ -130,6 +129,27 @@ class DependencyTree
     $stderr.puts "#{@links_registry_csv}\n\n\n\n"
   end
 
+  def remove_nodes(nodes_to_remove)
+    $stderr.puts "------------nodes_to_remove----------"
+    $stderr.puts "#{nodes_to_remove}\n\n\n\n"
+    nodes_to_remove.each { |key, value| @node_csv.delete(key) }
+    nodes_to_remove.each { |key, value| @edge_csv.delete_if { |edge| edge["source"] == value["id"] || edge["target"] == value["id"] } }
+    nodes_to_remove.each { |key, value| @links_registry_csv.delete_if { |link_key, value| link_key.include?(key) } }
+  end
+
+  # TODO: the below is incomplete, as it also excludes the swift files having OBJC names
+  def remove_nodes_protocols_const_enums(node_csv)
+    nodes_to_remove_protocols_const_enums = node_csv.select { |key, value| 
+      key.start_with?("AF") == false && #keep AFNetworking
+      key.start_with?("RK") == false && #keep RestKit
+      key.start_with?("FB") == false && #keep Shimmer pod relates clases
+      key.include?("TTTAttributedLabel")== false && #keep TTTAttributed label 
+      value["language"] == nil &&
+      key.include?("shared") == false &&
+      key.include?(".main") == false
+    } 
+    return nodes_to_remove_protocols_const_enums
+  end
 
   #
   #
