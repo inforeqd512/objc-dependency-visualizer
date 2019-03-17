@@ -190,7 +190,7 @@ def pair_source_dest (dependency)
         dependency_hierarchy_node.superclass_or_protocol.each { |name| #when no superclass means the Sublass is in foundation or the ignored folders, so introduce a self relation just to capture the framework and language
           yield dependency_hierarchy_node.language, dependency_hierarchy_node.framework, name, dependency_hierarchy_node.subclass, DependencyItemType::CLASS, DependencyItemType::CLASS, DependencyLinkType::INHERITANCE
         }
-      else
+      elsif dependency_hierarchy_node.dependency.count > 0 #only create a self if there are dependencies, as 
         yield dependency_hierarchy_node.language, dependency_hierarchy_node.framework, dependency_hierarchy_node.subclass, dependency_hierarchy_node.subclass, DependencyItemType::CLASS, DependencyItemType::CLASS, DependencyLinkType::INHERITANCE
       end
       dependency_hierarchy_node.dependency.each { |dependency|
