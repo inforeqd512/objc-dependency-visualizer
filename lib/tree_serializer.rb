@@ -53,7 +53,7 @@ class TreeSerializer
   end
 
   def serialize_to_csv()
-    node = @dependency_tree.node_csv_array #[{name: {"id":1}}]
+    node = @dependency_tree.node_csv_hash #{"name": {"id":1, "framework": "Banking", "language": "objc"}}
     edge = @dependency_tree.edge_csv_array #[{source ,target, type}]
     CSV.open("edge.csv", "wb") {|csv| 
       csv << ["Source", "Target", "Type"]
