@@ -1,3 +1,5 @@
+require 'helpers/configuration'
+
 module DependencyItemType
   CLASS = 'class'.freeze
   STRUCTURE = 'struct'.freeze
@@ -121,6 +123,7 @@ class DependencyTree
     # nodes_to_remove_protocols_const_enums = remove_nodes_protocols_const_enums(@node_csv)
     # nodes_to_remove = nodes_to_remove_valid_dest_check.merge(nodes_to_remove_protocols_const_enums) #merge the two hash 
     remove_nodes(nodes_to_remove)
+    update_language(@node_csv)
     $stderr.puts "------------node_csv----------"
     $stderr.puts "#{@node_csv}\n\n\n\n"
     $stderr.puts "------------edge_csv----------"
@@ -135,6 +138,17 @@ class DependencyTree
     nodes_to_remove.each { |key, value| @node_csv.delete(key) }
     nodes_to_remove.each { |key, value| @edge_csv.delete_if { |edge| edge["source"] == value["id"] || edge["target"] == value["id"] } }
     nodes_to_remove.each { |key, value| @links_registry_csv.delete_if { |link_key, value| link_key.include?(key) } }
+  end
+
+  #take a stab at identifying objc code in project for the dest nodes that did not get a language assigned
+  def update_language(node_csv)
+    node_csv.each { |key, value| 
+     if value["language"] == nil 
+      if is_node_objc(key) == true
+        value["language"] = "objc"
+      end
+     end
+  }
   end
 
   # TODO: the below is incomplete, as it also excludes the swift files having OBJC names
