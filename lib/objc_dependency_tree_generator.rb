@@ -137,7 +137,7 @@ class DependencyTreeGenerator
 
     if @options[:project_root_path]
       $stderr.puts "\n\n--------------objc implementation file enter--------------"
-      file_paths = find_objc_implementation_files(@options[:project_root_path])
+      file_paths = find_objc_files(@options[:project_root_path])
       return tree unless file_paths
       ObjcFromFileDependenciesGenerator.new.generate_dependencies(file_paths, &update_tree_block)
 

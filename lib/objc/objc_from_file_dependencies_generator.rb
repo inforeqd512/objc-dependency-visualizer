@@ -51,13 +51,9 @@ class ObjcFromFileHierarchyCreator
     language = language(filename)
     line_count = 0
 
-    implementation_file_lines(filename) do |file_line|
+    objc_file_lines(filename) do |file_line|
       Logger.log_message(file_line)
       line_count = line_count + 1
-
-      if file_line.include?("Users/")
-        return false
-      end
 
       #for static and global declarations, use the file name as default node
       #when see @interface then extract the protocols from it for the current node
@@ -76,7 +72,6 @@ class ObjcFromFileHierarchyCreator
       # NSDictionary *outageDataDictionary = [XXXAggregateRemoteConfig sharedInstance].basicBankingConfig[kOutageMessageDataKey];
       # queue:[NSOperationQueue mainQueue]
 
-      #when see @implementation then take the word after that as subclass
       decl_start_line_found, current_node = update_subclass_superclass_protocol_names(language, framework_name, file_line, current_node, dependency)
 
       if decl_start_line_found == true 
@@ -91,7 +86,7 @@ class ObjcFromFileHierarchyCreator
         #for each line in scope of @implementation ... @end, tokenize and find dependency
         if can_add_dependency(file_line)
           if /\"/.match(file_line) != nil 
-            # if the line contains strings in double quotes then modify the line and extract dependencies
+            # if the line contains strings in double quotes then replace the text in quotes with spaces and extract dependencies from modified string
             # NSString *htmlErrorContent = [XXXFileReader contentsForFile:@"error" type:@"html" inBundle:[NSBundle mainBundle]]; <-- identify te singleton
             everything_between_double_quotes = /(["'])(\\?.)*?\1/
             removed_double_quotes = file_line.gsub(everything_between_double_quotes, '')
@@ -148,6 +143,10 @@ class ObjcFromFileHierarchyCreator
   end
 
   def can_add_dependency(file_line)
+    if file_line.include?("pragma")  #pragma directive  
+      Logger.log_message("------ignore: pragma------")
+      return false
+    end
     #
     # Multiline - check for it before every other check so other checks do not bypass the setting of the multiline_comment_ignore variabel
     #
@@ -307,16 +306,12 @@ class ObjcFromFileHierarchyCreator
     return subclass_name, super_class_name, protocol_list_string
   end
 
-  def implementation_file_lines(file_path)
+  def objc_file_lines(file_path)
 
     p file_path
     file_path.strip!
     File.open(file_path).each do |line|
-      if line.include?("pragma")
-        #ignore
-      else
-        yield line
-      end 
+      yield line
     end
     # File is closed automatically at end of block
   end

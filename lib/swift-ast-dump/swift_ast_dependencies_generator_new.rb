@@ -48,13 +48,18 @@ class ASTHierarchyCreator
 
   def create_hierarchy filename, dependency
 
+    #only read the swift code file to get the line count.. The AST file below will be used to create the dependency tree
+    line_count = 0
+    swift_file_lines(filename) do |file_line|
+      line_count = line_count + 1
+    end
+
     Logger.log_message("------ASTHierarchyCreator-filename: #{filename}-----")
 
     tag_stack = Stack.new
     dependency = dependency
     current_node = nil
 
-    line_count = 0
     is_swift_tag = /<range:/ #if the 'range' word appears then its a swift tag line
     maybe_singleton = ""
     maybe_singleton_file_line = ""
@@ -68,7 +73,6 @@ class ASTHierarchyCreator
     ast_tags_in_file(filename) do |file_line|
 
       Logger.log_message file_line
-      line_count = line_count + 1
 
       #basic logic - when you see top level tags usually _decl, then till the next top level is seen, every word that begins with Capital letter is a dependency. 
       #               However, in the tag stack still keep track of all other child _decl so you can ignore ones having 'private' modifiers
@@ -79,7 +83,7 @@ class ASTHierarchyCreator
         tag_node = SwiftTagHierarchyNode.new (file_line)
 
         node_below_top_level = tag_stack.node_just_below_top_level
-        if file_line.include?("top_level_decl") #insert top_level_decl if the tag stack and pop existing nodes if any
+        if file_line.include?("top_level_decl") #insert top_level_decl in the tag stack and pop existing nodes under prev top_level_decl if any
           num_nodes_popped = update_tag_hierarchy(tag_node, tag_stack)
           Logger.log_message "-----top_level_decl node created ---#{tag_node.tag_name}---\n\n"          
         else #insert tags at just below top_level_decl ie. import_decl, class_decl, struct_decl, proto_decl, ext_decl, enum_decl etc
@@ -112,16 +116,20 @@ class ASTHierarchyCreator
 
       if current_node != nil # swift file may have more than one top level nodes?
 
+
+      
+        #subclass, protocol, extension name - this works as the subclass will be updated only if it was nil before.. 
+        #check this first as it has side effect of popping the current_node if the subclass already exists. 
+        # add all dependencies later so it's added to the correct node instance
+        current_node, subclass_name_found = subclass_name(file_line, currently_seeing_tag, current_node, dependency)
+        current_node.add_framework_name(framework_name)
+        current_node.add_language(language)
+
         #identify singletons and set them up as dependencies even if they are in types that are private
         maybe_singleton, maybe_singleton_file_line = two_line_singleton(maybe_singleton, maybe_singleton_file_line, file_line, current_node, currently_seeing_tag, tag_stack)
 
         single_line_singleton(file_line, current_node)
-      
-        #subclass, protocol, extension name - this works as the subclass will be updated only if it was nil before.. 
-        current_node, subclass_name_found = subclass_name(file_line, currently_seeing_tag, current_node, dependency)
-        current_node.add_framework_name(framework_name)
-        current_node.add_language(language)
-        
+
         #superclass or protocol name
         if subclass_name_found == false #if this file line has not already passed the above subclass check
           current_node, superclass_or_protocol_name_found = superclass_or_protocol_name(file_line, currently_seeing_tag, current_node)
@@ -132,7 +140,7 @@ class ASTHierarchyCreator
                 current_node = add_regular_dependencies(file_line, current_node)
                 #if by the time the first regular dependency is added, the subclass name is not present, then most likely its because it is second level var_decl, const_dect, typealias_decl
                 #so to capture the dependency of the type this var,const or alias refers to, capture it atleast at .swift file name level till 
-                #TODO find a better way to link to proper paretn Type that uses the const or var
+                #TODO find a better way to link to proper parent Type that uses the const or var
                 subclass_name_default_if_empty(current_node, subclass_name_for_global_decl)
               end
             end
@@ -314,8 +322,8 @@ class ASTHierarchyCreator
     end
     #ignore tags where the word will begin with Capital letter but it does not mean its a dependency
     #              kind: `string`, raw_text: `"UserAgentAppName"`
-    #ignore tags where you will definitely not find any dependencies eg literal:|method_name:|attributes:|
-    #ignore tags where the place where the dependency would have started is a small case so it's not a dependency eg identifier: `[a-z]
+    #ignore tags where you will definitely not find any dependencies eg literal:|method_name:|
+    #ignore tags where the regex capture for dependency would have passed but the word is a small case so it's not a dependency eg identifier: `[a-z]
     #ignore tags with singleton as it's already taken care of above eg identifier: `shared`|identifier: `main`/
     #uses attributes: tag for information like: 
     # @objc(XXXModalAction)
@@ -335,6 +343,17 @@ class ASTHierarchyCreator
     IO.popen("/Users/mistrys/Documents/Development/swift-ast-fork/.build/release/swift-ast -dump-ast #{filename}") { |fd|
       fd.each { |line| yield line }
     }
+  end
+
+  #TODO - perhaps move this to helper so common between objc and swift
+  def swift_file_lines(file_path)
+
+    p file_path
+    file_path.strip!
+    File.open(file_path).each do |line|
+      yield line
+    end
+    # File is closed automatically at end of block
   end
 
 end

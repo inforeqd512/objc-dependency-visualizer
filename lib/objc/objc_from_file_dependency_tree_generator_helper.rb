@@ -1,7 +1,7 @@
 require 'helpers/logger'
 require 'helpers/configuration'
 
-def find_objc_implementation_files(project_root_folder_path)
+def find_objc_files(project_root_folder_path)
 
     return nil unless project_root_folder_path
 
