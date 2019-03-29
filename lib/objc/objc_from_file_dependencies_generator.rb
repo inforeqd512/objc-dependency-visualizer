@@ -85,17 +85,18 @@ class ObjcFromFileHierarchyCreator
       elsif current_node != nil #means in local scope of the @implementation
         #for each line in scope of @implementation ... @end, tokenize and find dependency
         if can_add_dependency(file_line)
-          if /\"/.match(file_line) != nil 
+          #check for comments first to catch lines that have double quotes in comments eg // 2) Remove balanceUsageType                                               ie "myContext-SSI"
+          if file_line.include?("//") == true #if the line contains comments esp those at end of file, then split on comment line and add dependencies
+            substring_till_start_of_comment = file_line.split("//").first
+            if substring_till_start_of_comment != nil
+              current_node.add_dependency(substring_till_start_of_comment, true)
+            end
+          elsif /\"/.match(file_line) != nil 
             # if the line contains strings in double quotes then replace the text in quotes with spaces and extract dependencies from modified string
             # NSString *htmlErrorContent = [XXXFileReader contentsForFile:@"error" type:@"html" inBundle:[NSBundle mainBundle]]; <-- identify te singleton
             everything_between_double_quotes = /(["'])(\\?.)*?\1/
             removed_double_quotes = file_line.gsub(everything_between_double_quotes, '')
             current_node.add_dependency(removed_double_quotes, true)          
-          elsif file_line.include?("//") == true #if the line contains comments esp those at end of file, then split on comment line and add dependencies
-            substring_till_start_of_comment = file_line.split("//").first
-            if substring_till_start_of_comment != nil
-              current_node.add_dependency(substring_till_start_of_comment, true)
-            end
           else
             current_node.add_dependency(file_line, true)
           end
