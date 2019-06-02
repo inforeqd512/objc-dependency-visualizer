@@ -24,11 +24,7 @@ class ObjcFromFileDependenciesGenerator
 
         #yield source and destination to create a tree
     pair_source_dest(@dependency) do  |language, framework, source, source_type, dest, dest_type, link_type|
-      if @sigmajs
-        yield source, dest
-      else
-        yield language, framework, source, source_type, dest, dest_type, link_type
-      end
+      yield language, framework, source, source_type, dest, dest_type, link_type
     end
 
     print_hierarchy(@dependency)

@@ -10,7 +10,6 @@ require 'objc/objc_dependencies_generator'
 require 'objc/objc_from_file_dependencies_generator'
 require 'sourcekitten/sourcekitten_dependencies_generator'
 require 'dependency_tree'
-require 'dependency_tree_sigmajs'
 require 'tree_serializer'
 require 'helpers/logger'
 
@@ -58,11 +57,6 @@ class DependencyTreeGenerator
       end
       o.on('-k FILENAME', 'Generate dependencies from source kitten output (json)') do |v|
         options[:sourcekitten_dependencies_file] = v
-      end
-      
-      o.on('--sigmajs SIGMAJS', "SigmaJs representation") do |sigmajs|
-        $stderr.puts "-----sigmajs: #{sigmajs}-----"
-        options[:sigmajs] = true
       end
 
       # o.on('--ast-file FILENAME', 'Generate dependencies from the swift ast dump output (ast)') do |v|
@@ -121,19 +115,10 @@ class DependencyTreeGenerator
   def tree_for_objc_swift
 
     tree = DependencyTree.new
-    if @options[:sigmajs]
-      $stderr.puts("@options[:sigmajs]")
-      tree = DependencyTreeSigmajs.new
-    end
 
     return tree if !@options || @options.empty?
 
     update_tree_block = lambda { |language, framework, source, source_type, dest, dest_type, link_type| tree.add(language, framework, source, source_type, dest, dest_type, link_type) } 
-
-    if @options[:output_format].include?("sigmajs")
-      update_tree_block = lambda { |source, source_type, dest, dest_type, link_type| tree.add_sigmajs(source, source_type, dest, dest_type, link_type) } 
-
-    end
 
     if @options[:project_root_path]
       $stderr.puts "\n\n--------------objc implementation file enter--------------"
@@ -144,16 +129,10 @@ class DependencyTreeGenerator
       $stderr.puts "\n\n--------------swift file enter--------------"
       generator = SwiftAstDependenciesGeneratorNew.new(
         @options[:project_root_path],
-        @options[:swift_ast_show_parsed_tree],
-        @options[:sigmajs]
+        @options[:swift_ast_show_parsed_tree]
       )
-      if @options[:sigmajs]
-        $stderr.puts "\n\n--------------swift enter: sigmajs--------------"
-        generator.generate_dependencies(&update_tree_block_sigmajs)        
-      else
-        $stderr.puts "\n\n--------------swift .swift file list enter--------------"
-        generator.generate_dependencies(&update_tree_block)
-      end
+      $stderr.puts "\n\n--------------swift .swift file list enter--------------"
+      generator.generate_dependencies(&update_tree_block)
 
     end
 
