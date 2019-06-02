@@ -54,6 +54,12 @@ class DependencyTree
   #
   #
   def csv_display(target_language, target_framework, source, target, source_type, dest_type, link_type)
+    # currently there's a bug in swift-ast 0.18.10 where the protocol decl methods take up the same name as protocol.
+    # so till that is fixed, explicitly ignoring those nodes where source and dependency names are the same
+    if source == target 
+      return
+    end
+
     link_key = link_key(source, target)
     if @links_registry_csv.key?(link_key)
       #link exists so dont add link
