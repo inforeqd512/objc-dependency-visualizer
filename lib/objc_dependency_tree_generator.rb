@@ -8,11 +8,10 @@ require 'objc/objc_from_file_dependency_tree_generator_helper'
 require 'swift-ast-dump/swift_ast_dependencies_generator_new'
 require 'objc/objc_dependencies_generator'
 require 'objc/objc_from_file_dependencies_generator'
-require 'sourcekitten/sourcekitten_dependencies_generator'
 require 'dependency_tree'
 require 'tree_serializer'
 require 'helpers/logger'
-
+require 'helpers/valid_destination'
 
 class DependencyTreeGenerator
   def initialize(options)
@@ -54,9 +53,6 @@ class DependencyTreeGenerator
       end
       o.on('-e PREFIXES', "Prefixes of classes those will be exсluded from visualization. \n\t\t\t\t\tNS|UI\n\t\t\t\t\tUI|CA|MF") do |exclusion_prefixes|
         options[:exclusion_prefixes] = exclusion_prefixes
-      end
-      o.on('-k FILENAME', 'Generate dependencies from source kitten output (json)') do |v|
-        options[:sourcekitten_dependencies_file] = v
       end
 
       # o.on('--ast-file FILENAME', 'Generate dependencies from the swift ast dump output (ast)') do |v|
@@ -108,7 +104,6 @@ class DependencyTreeGenerator
   end
 
   def generate_dependency_tree
-    return build_sourcekitten_dependency_tree if @options[:sourcekitten_dependencies_file]
     return tree_for_objc_swift
   end
 
@@ -145,13 +140,6 @@ class DependencyTreeGenerator
   
     tree
   end  
-
-  def build_sourcekitten_dependency_tree
-    generator = SourcekittenDependenciesGenerator.new(
-      @options[:sourcekitten_dependencies_file]
-    )
-    generator.generate_dependencies
-  end
 
   def dependencies_to_s
     tree = build_dependency_tree
