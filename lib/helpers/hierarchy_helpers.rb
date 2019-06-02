@@ -186,13 +186,18 @@ def pair_source_dest (dependency)
   dependency.each { |dependency_hierarchy_node|
     if dependency_hierarchy_node.subclass.length > 0 #subclasses are nil for top level var_decl, const_decl
 
-      if dependency_hierarchy_node.superclass_or_protocol.count > 0 #ignore Apple's classes. some how even with this, the classes and structs declared in swift with no inheritance still come through
-        dependency_hierarchy_node.superclass_or_protocol.each { |name| #when no superclass means the Sublass is in foundation or the ignored folders, so introduce a self relation just to capture the framework and language
-          yield dependency_hierarchy_node.language, dependency_hierarchy_node.framework, name, dependency_hierarchy_node.subclass, DependencyItemType::CLASS, DependencyItemType::CLASS, DependencyLinkType::INHERITANCE
+      #ignore Apple's classes. some how even with this, the classes and structs declared in swift with no inheritance still come through
+      if dependency_hierarchy_node.superclass_or_protocol.count > 0 
+        dependency_hierarchy_node.superclass_or_protocol.each { |superclass_or_protocol| 
+          yield dependency_hierarchy_node.language, dependency_hierarchy_node.framework, superclass_or_protocol, dependency_hierarchy_node.subclass, DependencyItemType::CLASS, DependencyItemType::CLASS, DependencyLinkType::INHERITANCE
         }
-      elsif dependency_hierarchy_node.dependency.count > 0 #only create a self if there are dependencies, as 
-        yield dependency_hierarchy_node.language, dependency_hierarchy_node.framework, dependency_hierarchy_node.subclass, dependency_hierarchy_node.subclass, DependencyItemType::CLASS, DependencyItemType::CLASS, DependencyLinkType::INHERITANCE
+      #when no superclass means the Sublass is in foundation or the ignored folders
+      #for that subclass, add a relationship as below to capture the framework and language for it
+      elsif dependency_hierarchy_node.dependency.count > 0 
+        yield dependency_hierarchy_node.language, dependency_hierarchy_node.framework, "AppleNativeOrIgnored", dependency_hierarchy_node.subclass, DependencyItemType::CLASS, DependencyItemType::CLASS, DependencyLinkType::INHERITANCE
       end
+      #for each dependency of the subclass capture the relationship, but cannot put language and framework 
+      #as that dependency can be from a different one which will be captured by the above if when it appears in the file
       dependency_hierarchy_node.dependency.each { |dependency|
         yield "", "", dependency_hierarchy_node.subclass, dependency, DependencyItemType::CLASS, DependencyItemType::CLASS, DependencyLinkType::CALL
       }
