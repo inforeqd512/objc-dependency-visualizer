@@ -38,27 +38,11 @@ class DependencyTree
 
   end
 
-
-
-
- 
   #method to add source and dest details
 
   def add(language, framework, source, dest, source_type = DependencyItemType::UNKNOWN, dest_type = DependencyItemType::UNKNOWN, link_type = DependencyItemType::UNKNOWN)
 
     csv_display(language, framework, source, dest, source_type, dest_type, link_type)
-    
-  end
-
-  def add_d3js(source, dest, source_type = DependencyItemType::UNKNOWN, dest_type = DependencyItemType::UNKNOWN, link_type = DependencyItemType::UNKNOWN)
-
-    d3js_display(source, dest, source_type, dest_type, link_type)
-    
-  end
-
-  def add_sigmajs(source, dest, source_type = DependencyItemType::UNKNOWN, dest_type = DependencyItemType::UNKNOWN, link_type = DependencyItemType::UNKNOWN)
-
-    sigmajs_display_data(source, dest)
     
   end
 
@@ -164,27 +148,13 @@ class DependencyTree
     } 
     return nodes_to_remove_protocols_const_enums
   end
-
   #
   #
   #
-  # => D3JS display
+  # => END CSV display
   #
   #
   #
-
-  def d3js_display(source, dest, source_type, dest_type, link_type)
-    register(source, source_type)
-    register(dest, dest_type)
-    register_link(source, dest, link_type)
-
-    return if connected?(source, dest)
-
-    @links_count += 1
-    @links += [{source: source, dest: dest}]
-
-  end
-
   def connected?(source, dest)
     @links.any? {|item| item[:source] == source && item[:dest] == dest}
   end
@@ -283,139 +253,6 @@ class DependencyTree
     }
     
     filtered_edges
-  end
-
-  #
-  #
-  #
-  # => SIGMAJS display
-  #
-  #
-  #
-  #array of nodes sorted by number of links in reverse order of the links
-  def sigmajs_display_data (source, dest)
-
-    if is_valid_dest?(dest, 'NS|UI|CA|CG|CI|CF') == false ||
-       is_valid_dest?(source, 'NS|UI|CA|CG|CI|CF') == false
-       $stderr.puts "--------false: #{source}-------#{dest}-------"
-      return
-    end
-
-    source_node = nil
-    if @nodes[source] == nil
-      node = TreeNode.new
-      node.label = source
-      @id_generator += 1
-      node.id = @id_generator
-
-      @nodes[source] = node
-      source_node = node
-      source_node = @nodes[source]
-    else
-      source_node = @nodes[source]
-    end
-
-    dest_node = nil
-    if @nodes[dest] == nil
-      node = TreeNode.new
-      node.label = dest
-      @id_generator += 1
-      node.id = @id_generator
-
-      @nodes[dest] = node
-      dest_node = node
-    else
-      dest_node = @nodes[dest]
-    end
-
-    return if connected_sigmajs?(source_node.id, dest_node.id)
-
-    if source_node != nil and dest_node != nil
-      edge = TreeEdge.new
-      edge.source = source_node.id
-      edge.target = dest_node.id
-      @id_generator += 1
-      edge.id = @id_generator
-
-      $stderr.puts "------edge source: #{source} --- dest: #{dest}"
-      @edges.push(edge)
-      source_node.num_links += 1
-    end
-
-  end
-
-  def connected_sigmajs?(source, dest)
-    @edges.any? {|edge| edge.source == source and edge.target == dest}
-  end
-
-  def sorted_nodes 
-    sorted_nodes = @nodes.values.sort_by { |obj| obj.num_links }.reverse
-    sorted_nodes
-  end
-
-  #array of nodes with high connections, arranged in a grid required by sigmajs
-  def nodes_array
-    sorted_nodes = sorted_nodes()
-
-    keep_num_links_more_than = 2
-    $stderr.puts "------nodes filtering to get nodes having more links than: #{keep_num_links_more_than}---------"
-    nodes_with_high_connections = filtered_nodes_per_num_links(sorted_nodes, keep_num_links_more_than)
-
-    grid_arranged = arrange_in_grid(nodes_with_high_connections)
-
-    grid_arranged
-  end
-
-  #array of nodes with high connections
-  def filtered_nodes_per_num_links (nodes, keep_num_links_more_than)
-    filtered_nodes = nodes.select { |node| node.num_links > keep_num_links_more_than }
-    filtered_nodes
-  end
-
-  #arrane in grid of (0,0) in top left and increasing by scale 50px for each change in num-links and 30px across with nodes in the same num-links
-  def arrange_in_grid (sorted_nodes)
-
-    total_cols = 50
-    current_col_count = 1
-
-    scale = 50
-    current_num_links = 0
-
-    current_grid_x = 0
-    current_grid_y = 0
-    step_y = 2
-
-    total_nodes = sorted_nodes.count() 
-    for i in 0..(total_nodes - 1)
-      node = sorted_nodes[i]
-
-      if current_num_links == 0
-        current_num_links = node.num_links
-      end
-
-      #move in the grid
-      if current_col_count <= total_cols
-        if current_num_links == node.num_links
-          current_grid_x += 1
-        else
-          current_num_links = node.num_links
-          current_grid_x = 1
-          current_grid_y += step_y
-          current_col_count = 1
-        end
-      else
-        current_col_count = 1
-        current_grid_x = 1
-        current_grid_y += 1
-      end
-
-      node.x = current_grid_x * scale
-      node.y = current_grid_y * scale
-      current_col_count += 1
-
-    end
-
-    sorted_nodes
   end
 end
 

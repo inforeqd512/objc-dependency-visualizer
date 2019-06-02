@@ -27,10 +27,6 @@ class TreeSerializer
     case output_format
     when 'csv'
       serialize_to_csv()
-    when 'd3js'
-      serialize_to_d3js(object_to_serialize)
-    when 'sigmajs'
-      serialize_to_sigmajs(object_to_serialize)
     when 'dot'
       object_to_serialize = get_object_to_serialise()
       serialize_to_dot(object_to_serialize)
@@ -63,23 +59,6 @@ class TreeSerializer
       csv << ["Id", "Label", "Framework", "Language"]
       node.each {|key, value| csv << [value["id"], key, value["framework"], value["language"]] }
     }
-  end
-
-  def serialize_to_d3js(object_to_serialize)
-    object_to_serialize[:links] = @dependency_tree.links_with_types
-    object_to_serialize[:links_count] = @dependency_tree.links_count
-    object_to_serialize[:objects] = Hash[
-      @dependency_tree.objects.map do |o|
-        [o, { type: @dependency_tree.type(o) }]
-      end
-    ]
-    serialize_to_json_var(object_to_serialize)
-  end
-
-  def serialize_to_sigmajs(object_to_serialize)
-    object_to_serialize[:edges] = @dependency_tree.edges_array
-    object_to_serialize[:nodes] = @dependency_tree.nodes_array
-    serialize_to_json(object_to_serialize)
   end
 
   def serialize_to_yaml(object_to_serialize)
