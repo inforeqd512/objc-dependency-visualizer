@@ -13,7 +13,8 @@ def find_objc_files(project_root_folder_path)
         end
     }
     final_paths = final_paths(paths)
-    Logger.log_message("-----------final_paths: #{final_paths}----------------------")
+    Logger.log_message("-----------final_paths objc count: #{final_paths.count}----------------------")
+    Logger.log_message("-----------final_paths objc: #{final_paths}----------------------")
     Logger.log_message("\n\n\n\n")
 
     final_paths.sort! #to have .h and .m one after another
