@@ -3,6 +3,8 @@ require 'set'
 class Configuration
   @@path_string_ignore = #exclude file paths to Tests in frameworks or subfolders, and Demo app
     Set.new([
+    'BinaryFramework',
+    '-Swift.h',
     'Content/',
     'Demo',
     'DerivedData',
