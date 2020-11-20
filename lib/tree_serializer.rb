@@ -51,9 +51,15 @@ class TreeSerializer
   def serialize_to_csv()
     node = @dependency_tree.node_csv_hash #{"name": {"id":1, "framework": "Banking", "language": "objc"}}
     edge = @dependency_tree.edge_csv_array #[{source ,target, type}]
+
+    #here we will reverse the source and target to show correct information flow
+    #in code when an object A refers to another B, that means information flows
+    #from B to A. So a change in B will mean a change is required in A or A now
+    #has access to more information than it did previouly
+    #ie. dependency injection 
     CSV.open("edge.csv", "wb") {|csv| 
       csv << ["Source", "Target", "Type"]
-      edge.each {|hash| csv << [hash["source"], hash["target"], hash["type"]] } 
+      edge.each {|hash| csv << [hash["target"], hash["source"], hash["type"]] } 
     }
     CSV.open("node.csv", "wb") {|csv| 
       csv << ["Id", "Label", "Framework", "Language"]
