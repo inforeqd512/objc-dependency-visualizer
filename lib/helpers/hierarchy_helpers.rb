@@ -216,13 +216,13 @@ def framework_name (filename)
     name_match = framework_name_regex.match(filename) #extract framework name 
     framework_name = name_match[:framework_name]
     Logger.log_message("------framework_name in func Frameworks: #{framework_name}--------")
-  else
-    framework_name_regex = /github\/(?<framework_name>.*)\//
-    name_match = framework_name_regex.match(filename) #extract framework name 
-    framework_name = name_match[:framework_name]
-    Logger.log_message("------framework_name in func Sources: #{framework_name}--------")
+  elsif filename.include?("ANZAppExtension")
+    framework_name = "ANZAppExtension"
+  elsif filename.include?("Application")
+    framework_name = "Application"
   end
 
+  Logger.log_message("------framework_name : #{framework_name}--------")
   return framework_name
 end
 
