@@ -92,7 +92,8 @@ class DependencyHierarchyNode
   end
 
   def add_tokenized_dependency (dependent_types_string)
-    token_string = dependent_types_string.gsub(/[\[\]\(\)\-<>`\s@:_\.";\*]/, ",")
+    token_string_keeping_colon = dependent_types_string.gsub(/[\[\]\(\)\-<>`\s@_\.";\*]/, ",")
+    token_string = token_string_keeping_colon.gsub(/[:]/, ":,") #ignore words with ObjC method names that end with : and hopefully those that have "With" in them as these are ObjC methods
     token_list = token_string.split(",") #blindly convert the pattern characters like () <> etc to commas and split this string into tokens with ',' delimiter
     token_list.each { |token| 
       token.strip! #remove leading and trailing spaces eg "struct ", or " " tokens
@@ -104,7 +105,7 @@ class DependencyHierarchyNode
             # token.start_with?("*") == false and
             # token.start_with?("/") == false and
             # token == " shared"
-            if token.include?("With") == false #ignore words with "With" in them as these are ObjC methods
+            if token.include?(":") == false #ignore ObjC method names
               if token != token.upcase #if the word is all upper case then it's some string or constant or switch case and we're not interested in it
                 Logger.log_message("--------add_tokenized_dependency token: #{token}-------------")
                 yield token
