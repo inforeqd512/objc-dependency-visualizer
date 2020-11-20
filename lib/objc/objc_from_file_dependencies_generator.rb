@@ -133,6 +133,20 @@ class ObjcFromFileHierarchyCreator
 
       current_node = get_node_with_details(subclass_name, super_class_name, protocol_list_string, language, framework_name, current_node, dependency)
 
+    elsif file_line.include?("@protocol") and 
+      file_line.include?(";") == false and
+      file_line.include?("(") == false
+      #in objc protocols can have the following presence
+      #@protocol ANZBBCustomerDetailsProvider; <- when saying that protocol is defined elsewhere
+      #conformsToProtocol:@protocol(ANZWatchErrorResponseForUI)]
+      #@protocol JWTAlgorithmDataHolderProtocol <NSObject, NSCopying> ...@end <- protocol declaration
+      # so create a node only for the last presence as that is a declaration.. as JWTAlgorithmDataHolderProtocol with super class as NSObject, NSCopying
+      decl_start_line_found = true
+      file_line = file_line.gsub(/\s+/, ' ')
+      Logger.log_message("----file_line gsubbed : #{file_line} ")
+      subclass_name, super_class_name, protocol_list_string = subclass_superclass_protocol_name(file_line)
+      Logger.log_message("---------@protocol subclass: #{subclass_name}--------")
+      current_node = get_node_with_details(subclass_name, super_class_name, protocol_list_string, language, framework_name, current_node, dependency)
     end
 
     return decl_start_line_found, current_node
@@ -315,8 +329,14 @@ class ObjcFromFileHierarchyCreator
         name_match = subclass_name_regex.match(file_line) 
         subclass_name = name_match[:subclass_name]
       # end
+
+    elsif file_line.include? "@protocol" 
+      subclass_name_regex = /@protocol\s+(?<subclass_name>\w+)/ #from @protocol JWTAlgorithmDataHolderProtocol <NSObject, NSCopying> line
+      name_match = subclass_name_regex.match(file_line) 
+      subclass_name = name_match[:subclass_name]
     end
 
+    #after the above information is extracted, the protocols are extracted for classes and @protocols
     if name_match != nil 
       #TODO: multiline protocol string will not be added to protocol list but to dependencies
       candidate_list = file_line.split("<")
