@@ -37,6 +37,7 @@ class ObjcFromFileHierarchyCreator
 
   def create_hierarchy filename, dependency
 
+    Logger.log_message("inside create_hierarchy ObjcFromFileHierarchyCreator")
     tag_stack = Stack.new
     dependency = dependency
     current_node = nil
@@ -44,6 +45,8 @@ class ObjcFromFileHierarchyCreator
     multiline_comment_ignore = false
 
     framework_name = framework_name(filename)
+    Logger.log_message("*****framework_name #{framework_name}")
+
     language = language(filename)
     line_count = 0
 
@@ -116,6 +119,17 @@ class ObjcFromFileHierarchyCreator
       file_line.include?("@implementation")
       decl_start_line_found = true
       subclass_name, super_class_name, protocol_list_string = subclass_superclass_protocol_name(file_line)
+
+      #for instances where categories are in different frameworks we'll capture them
+      # in the framework where the original class was declared
+      #eg @interface ANZAccount (convertToPR) is declared in ANZIdentitySupport
+      # but we want to consider ANZAccount.h which is in ANZLegacy
+      if (file_line.include?("@interface") or 
+        file_line.include?("@implementation")) and 
+        file_line.include?("(") #indicating start of category declaration
+         Logger.log_message("*****ignore framework_name #{framework_name}")
+         framework_name = "" #ignore the framework coming from above
+      end
 
       if subclass_name.length > 0 
         Logger.log_message("---------subclass: #{subclass_name}--------")
@@ -252,7 +266,9 @@ class ObjcFromFileHierarchyCreator
       current_node = existing_node
       Logger.log_message("--------existing node found in dependency : #{current_node}------")
     end
-    current_node.add_framework_name(framework_name)
+    if framework_name.length > 0
+      current_node.add_framework_name(framework_name)
+    end
     current_node.add_language(language)
 
     return current_node
