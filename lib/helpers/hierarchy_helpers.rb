@@ -66,12 +66,12 @@ class DependencyHierarchyNode
   end
 
   def add_framework_name (framework_name)
-    Logger.log_message("-------framework_name:#{framework_name}--------")
+    Logger.log_message("-------add_framework_name:#{framework_name}--------")
     @framework = framework_name
   end
 
   def add_language (language)
-    Logger.log_message("-------language:#{language}--------")
+    Logger.log_message("-------add_language:#{language}--------")
     @language = language
   end
 
