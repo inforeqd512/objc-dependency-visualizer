@@ -97,7 +97,15 @@ end
 
 def final_paths(paths)
   paths_to_ignore = path_strings_to_ignore()
+  Logger.log_message("-----------paths_to_ignore count: #{paths_to_ignore.count}----------------------")
+  Logger.log_message("-----------paths_to_ignore: #{paths_to_ignore}----------------------")
+  Logger.log_message("\n\n\n\n")
+
   paths_to_include = path_strings_to_include()
+  rejected_paths = paths.select{|path| paths_to_ignore.any?{|word| path.include?(word)}}
+  Logger.log_message("-----------rejected_paths count: #{rejected_paths.count}----------------------")
+  Logger.log_message("-----------rejected_paths: #{rejected_paths}----------------------")
+  Logger.log_message("\n\n\n\n")
   final_paths_after_rejection = paths.reject{|path| paths_to_ignore.any?{|word| path.include?(word)}}
   final_paths_after_inclusion = paths.select{|path| paths_to_include.any?{|word| path.include?(word)}}
   final_paths = final_paths_after_rejection + final_paths_after_inclusion
