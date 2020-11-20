@@ -333,7 +333,8 @@ class ASTHierarchyCreator
     return true
   end
 
-  def ast_tags_in_file(filename)        
+  def ast_tags_in_file(filename)   
+    filename.gsub!(' ', '\ ')
     Logger.log_message("--------ast_tags_in_file: #{filename}-------------")
     IO.popen("/Users/mistrys/Documents/Development/swift-ast-fork/.build/release/swift-ast -dump-ast #{filename}") { |fd|
       fd.each { |line| yield line }
