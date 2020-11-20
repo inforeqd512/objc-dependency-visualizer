@@ -131,27 +131,36 @@ class ObjcFromFileHierarchyCreator
          framework_name = "" #ignore the framework coming from above
       end
 
-      if subclass_name.length > 0 
-        Logger.log_message("---------subclass: #{subclass_name}--------")
-        current_node = find_or_create_hierarchy_node_and_update_dependency(language, framework_name, subclass_name, current_node, dependency)
-        if current_node.subclass.length == 0 #when new node created
-          current_node.subclass = subclass_name
-        end
+      current_node = get_node_with_details(subclass_name, super_class_name, protocol_list_string, language, framework_name, current_node, dependency)
 
-        if super_class_name.length > 0 #when the current node is found or created and the super class name is available
-          Logger.log_message("---------superclass: #{super_class_name}--------")
-          current_node.add_polymorphism(super_class_name)    
-        end
-
-        if protocol_list_string.length > 0
-          Logger.log_message("---------protocols: #{protocol_list_string}--------")
-          current_node.add_polymorphism(protocol_list_string) #add tokenised protocols
-        end
-      end
     end
 
     return decl_start_line_found, current_node
   end
+
+
+  def get_node_with_details(subclass_name, super_class_name, protocol_list_string, language, framework_name, current_node, dependency)
+    if subclass_name.length > 0 
+      Logger.log_message("---------subclass: #{subclass_name}--------")
+      current_node = find_or_create_hierarchy_node_and_update_dependency(language, framework_name, subclass_name, current_node, dependency)
+      if current_node.subclass.length == 0 #when new node created
+        current_node.subclass = subclass_name
+      end
+
+      if super_class_name.length > 0 #when the current node is found or created and the super class name is available
+        Logger.log_message("---------superclass: #{super_class_name}--------")
+        current_node.add_polymorphism(super_class_name)    
+      end
+
+      if protocol_list_string.length > 0
+        Logger.log_message("---------protocols: #{protocol_list_string}--------")
+        current_node.add_polymorphism(protocol_list_string) #add tokenised protocols
+      end
+    end
+
+    return current_node
+  end
+
 
   def can_add_dependency(file_line)
     if file_line.include?("pragma")  #pragma directive  
