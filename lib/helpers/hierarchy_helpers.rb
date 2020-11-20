@@ -104,9 +104,11 @@ class DependencyHierarchyNode
             # token.start_with?("*") == false and
             # token.start_with?("/") == false and
             # token == " shared"
-            if token != token.upcase #if the word is all upper case then it's some string or constant or switch case and we're not interested in it
-              Logger.log_message("--------add_tokenized_dependency token: #{token}-------------")
-              yield token
+            if token.include?("With") == false #ignore words with "With" in them as these are ObjC methods
+              if token != token.upcase #if the word is all upper case then it's some string or constant or switch case and we're not interested in it
+                Logger.log_message("--------add_tokenized_dependency token: #{token}-------------")
+                yield token
+              end
             end
           end
         end    
