@@ -54,6 +54,22 @@ class Stack
   end
 end
 
+#class to hold all information that should go into the node
+class NetworkGraphNode
+  attr_accessor :language, :framework, :source, :source_type, :destination, :destination_type, :link_type
+
+  def initialize
+    @language = ""
+    @framework = ""
+    @source = ""
+    @source_type = ""
+    @destination = ""
+    @destination_type = ""
+    @link_type = ""
+  end
+
+end
+
 class DependencyHierarchyNode
   attr_accessor :subclass, :superclass_or_protocol, :dependency, :framework, :language
 
@@ -192,20 +208,43 @@ def pair_source_dest (dependency)
       #ignore Apple's classes. some how even with this, the classes and structs declared in swift with no inheritance still come through
       if dependency_hierarchy_node.superclass_or_protocol.count > 0 
         dependency_hierarchy_node.superclass_or_protocol.each { |superclass_or_protocol| 
-          yield dependency_hierarchy_node.language, dependency_hierarchy_node.framework, superclass_or_protocol, dependency_hierarchy_node.subclass, DependencyItemType::CLASS, DependencyItemType::CLASS, DependencyLinkType::INHERITANCE
+          networkGraphNode = NetworkGraphNode.new
+          networkGraphNode.language = dependency_hierarchy_node.language
+          networkGraphNode.framework = dependency_hierarchy_node.framework
+          networkGraphNode.source = superclass_or_protocol
+          networkGraphNode.destination = dependency_hierarchy_node.subclass
+          networkGraphNode.source_type = DependencyItemType::CLASS
+          networkGraphNode.destination_type = DependencyItemType::CLASS
+          networkGraphNode.link_type = DependencyLinkType::INHERITANCE
+          yield networkGraphNode
         }
       #when no superclass means the Sublass is in foundation or the ignored folders
       #for that subclass, add a relationship as below to capture the framework and language for it
       elsif dependency_hierarchy_node.dependency.count > 0 
-        yield dependency_hierarchy_node.language, dependency_hierarchy_node.framework, "AppleNativeOrIgnored", dependency_hierarchy_node.subclass, DependencyItemType::CLASS, DependencyItemType::CLASS, DependencyLinkType::INHERITANCE
+        networkGraphNode = NetworkGraphNode.new
+        networkGraphNode.language = dependency_hierarchy_node.language
+        networkGraphNode.framework = dependency_hierarchy_node.framework
+        networkGraphNode.source = "AppleNativeOrIgnored"
+        networkGraphNode.destination = dependency_hierarchy_node.subclass
+        networkGraphNode.source_type = DependencyItemType::CLASS
+        networkGraphNode.destination_type = DependencyItemType::CLASS
+        networkGraphNode.link_type = DependencyLinkType::INHERITANCE
+        yield networkGraphNode
       end
       #for each dependency of the subclass capture the relationship, but cannot put language and framework 
       #as that dependency can be from a different one which will be captured by the above if when it appears in the file
       dependency_hierarchy_node.dependency.each { |dependency|
-        yield "", "", dependency_hierarchy_node.subclass, dependency, DependencyItemType::CLASS, DependencyItemType::CLASS, DependencyLinkType::CALL
+        networkGraphNode = NetworkGraphNode.new
+        networkGraphNode.language = ""
+        networkGraphNode.framework = ""
+        networkGraphNode.source = "AppleNativeOrIgnored"
+        networkGraphNode.destination = dependency
+        networkGraphNode.source_type = DependencyItemType::CLASS
+        networkGraphNode.destination_type = DependencyItemType::CLASS
+        networkGraphNode.link_type = DependencyLinkType::CALL
+        yield networkGraphNode
       }
     end
-
   }
 end
 

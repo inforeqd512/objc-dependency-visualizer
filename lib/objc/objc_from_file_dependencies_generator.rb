@@ -22,9 +22,10 @@ class ObjcFromFileDependenciesGenerator
         final_line_count = final_line_count + line_count
     }
 
-        #yield source and destination to create a tree
-    pair_source_dest(@dependency) do  |language, framework, source, source_type, dest, dest_type, link_type|
-      yield language, framework, source, source_type, dest, dest_type, link_type
+    #yield source and destination to create a tree
+    pair_source_dest(@dependency) do  
+           |networkGraphNode|
+      yield networkGraphNode
     end
 
     print_hierarchy(@dependency)

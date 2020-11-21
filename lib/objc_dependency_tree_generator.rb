@@ -111,7 +111,10 @@ class DependencyTreeGenerator
 
     return tree if !@options || @options.empty?
 
-    update_tree_block = lambda { |language, framework, source, source_type, dest, dest_type, link_type| tree.add(language, framework, source, source_type, dest, dest_type, link_type) } 
+    update_tree_block = lambda { 
+              |networkGraphNode| 
+      tree.add(networkGraphNode)
+    } 
 
     if @options[:project_root_path]
       $stderr.puts "\n\n--------------objc implementation file enter--------------"

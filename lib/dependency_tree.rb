@@ -40,9 +40,9 @@ class DependencyTree
 
   #method to add source and dest details
 
-  def add(language, framework, source, dest, source_type = DependencyItemType::UNKNOWN, dest_type = DependencyItemType::UNKNOWN, link_type = DependencyItemType::UNKNOWN)
+  def add(networkGraphNode)
 
-    csv_display(language, framework, source, dest, source_type, dest_type, link_type)
+    csv_display(networkGraphNode)
     
   end
 
@@ -53,45 +53,47 @@ class DependencyTree
   #
   #
   #
-  def csv_display(target_language, target_framework, source, target, source_type, dest_type, link_type)
+  def csv_display(networkGraphNode)
     # currently there's a bug in swift-ast 0.18.10 where the protocol decl methods take up the same name as protocol.
     # so till that is fixed, explicitly ignoring those nodes where source and dependency names are the same
-    if source == target 
+    if networkGraphNode.source == networkGraphNode.destination 
       return
     end
-
-    link_key = link_key(source, target)
+    link_key = link_key(networkGraphNode.source, networkGraphNode.destination)
     if @links_registry_csv.key?(link_key)
       #link exists so dont add link
     else
-      if !@node_csv.key?(source)
+      if !@node_csv.key?(networkGraphNode.source)
         @id_generator_csv = @id_generator_csv + 1
-        @node_csv[source] = { "id" => @id_generator_csv } #{source_class_name => id, "framework" => UIKit}
+        @node_csv[networkGraphNode.source] = { "id" => @id_generator_csv } #{source_class_name => id, "framework" => UIKit}
       end
   
-      if !@node_csv.key?(target)
+      if !@node_csv.key?(networkGraphNode.destination)
         @id_generator_csv = @id_generator_csv + 1
-        @node_csv[target] = { "id" => @id_generator_csv }
+        @node_csv[networkGraphNode.destination] = { "id" => @id_generator_csv }
       end
 
-      if target_framework.length > 0 #TODO: this check will happen for each of the dependency. Can we reduce it to only when it's for the subclass
+      if networkGraphNode.framework.length > 0 #TODO: this check will happen for each of the dependency. Can we reduce it to only when it's for the subclass
         #TODO: for now only initialise if it doesn't contain any value. This will miss categorising those that have say ObjC subclasses, but have Swift categories/extensions.
         #Doing this so that once this value is set based on the fact that it's 
-        if @node_csv[target]["framework"] == nil  
-          @node_csv[target]["framework"] = target_framework #add the framework for the source (ie. subclass framework)
+        if @node_csv[networkGraphNode.destination]["framework"] == nil  
+          @node_csv[networkGraphNode.destination]["framework"] = networkGraphNode.framework #add the framework for the source (ie. subclass framework)
         end
       end
 
-      if target_language.length > 0
-        if @node_csv[target]["language"] == nil #TODO: for now only initialise if it doesn't contain any value. This will miss categorising those that have say ObjC subclasses, but have Swift categories/extensions
-          @node_csv[target]["language"] = target_language #add the language for the target subclass only (ie. subclass language = objc/swift)
+      if networkGraphNode.language.length > 0
+        if @node_csv[networkGraphNode.destination]["language"] == nil #TODO: for now only initialise if it doesn't contain any value. This will miss categorising those that have say ObjC subclasses, but have Swift categories/extensions
+          @node_csv[networkGraphNode.destination]["language"] = networkGraphNode.language #add the language for the target subclass only (ie. subclass language = objc/swift)
         end
       end
+
+      #add other features
+      @node_csv[networkGraphNode.destination]["node_type"] = networkGraphNode.destination_type # add whether class or protocol
 
       #add link
       @links_registry_csv[link_key] = true
-      source_id = @node_csv[source]["id"]
-      target_id = @node_csv[target]["id"]
+      source_id = @node_csv[networkGraphNode.source]["id"]
+      target_id = @node_csv[networkGraphNode.destination]["id"]
       type = "Directed"
   
       edge = { "source" => source_id, "target" => target_id,  "type" => "Directed"}
