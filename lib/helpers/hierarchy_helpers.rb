@@ -71,14 +71,21 @@ class NetworkGraphNode
 end
 
 class DependencyHierarchyNode
-  attr_accessor :subclass, :superclass_or_protocol, :dependency, :framework, :language
+  attr_accessor :subclass, :subclass_type, :superclass, :protocols, :dependency, :framework, :language
 
   def initialize
-    @subclass = ""
-    @superclass_or_protocol = Set.new #unique entries for super classes and protocols
-    @dependency = Set.new #unique entries for dependent classes
+    @subclass = "" #could be class or protocol 
+    @subclass_type = ""
+    @superclass = Set.new #unique entries for (objc superclasses) or (parent protocols or classes in swift)
+    @protocols = Set.new #unique entries for protocols
+    @dependency = Set.new #unique entries for dependent classes or structs etc
     @framework = ""
     @language = ""
+  end
+
+  def add_subclass_type (subclass_type)
+    Logger.log_message("-------add_subclass_type:#{subclass_type}--------")
+    @subclass_type = subclass_type
   end
 
   def add_framework_name (framework_name)
@@ -91,10 +98,18 @@ class DependencyHierarchyNode
     @language = language
   end
 
-  def add_polymorphism (superclass_or_protocol_name_line)
-    add_tokenized_dependency(superclass_or_protocol_name_line) { |token|
-      @superclass_or_protocol.add(token)
+  def add_protocols (protocol_name_line)
+    add_tokenized_dependency(protocol_name_line) { |token|
+    Logger.log_message("-------add_protocols:#{token}--------")
+      @protocols.add(token)
     }      
+  end
+
+  def add_superclass (superclass_line)
+    add_tokenized_dependency(superclass_line) { |token|
+    Logger.log_message("-------add_superclass:#{token}--------")
+      @superclass.add(token)
+    }   
   end
 
   def add_dependency (dependent_types_string, is_token_string = false)
@@ -190,8 +205,9 @@ def print_hierarchy (dependency)
 
     Logger.log_message("--------------#{dependency_hierarchy_node}-----------------")
     Logger.log_message("-----subclass: #{dependency_hierarchy_node.subclass}-----")
-    dependency_hierarchy_node.superclass_or_protocol.each { |node|
-      Logger.log_message("-----superclass_or_protocol: #{node}-----")
+    Logger.log_message("-----superclass: #{dependency_hierarchy_node.superclass}-----")
+    dependency_hierarchy_node.protocols.each { |node|
+      Logger.log_message("-----protocols: #{node}-----")
     }
     dependency_hierarchy_node.dependency.each { |node|
       Logger.log_message("-----dependency: #{node}-----")
@@ -205,42 +221,61 @@ def pair_source_dest (dependency)
   dependency.each { |dependency_hierarchy_node|
     if dependency_hierarchy_node.subclass.length > 0 #subclasses are nil for top level var_decl, const_decl
 
-      #ignore Apple's classes. some how even with this, the classes and structs declared in swift with no inheritance still come through
-      if dependency_hierarchy_node.superclass_or_protocol.count > 0 
-        dependency_hierarchy_node.superclass_or_protocol.each { |superclass_or_protocol| 
+      #superclass:subclass
+      if dependency_hierarchy_node.superclass.count > 0 
+        dependency_hierarchy_node.superclass.each { |superclass| 
           networkGraphNode = NetworkGraphNode.new
           networkGraphNode.language = dependency_hierarchy_node.language
           networkGraphNode.framework = dependency_hierarchy_node.framework
-          networkGraphNode.source = superclass_or_protocol
+          networkGraphNode.source = superclass
           networkGraphNode.destination = dependency_hierarchy_node.subclass
-          networkGraphNode.source_type = DependencyItemType::CLASS
-          networkGraphNode.destination_type = DependencyItemType::CLASS
+          networkGraphNode.source_type = "" #dont know the type of the superclass source
+          networkGraphNode.destination_type = dependency_hierarchy_node.subclass_type
           networkGraphNode.link_type = DependencyLinkType::INHERITANCE
           yield networkGraphNode
         }
-      #when no superclass means the Sublass is in foundation or the ignored folders
-      #for that subclass, add a relationship as below to capture the framework and language for it
       elsif dependency_hierarchy_node.dependency.count > 0 
+        #when no superclass means the Sublass is in foundation or the ignored folders
+        #for that subclass, add a relationship as below to capture the framework and language for it
+        #AppleNativeOrIgnored:subclass
         networkGraphNode = NetworkGraphNode.new
         networkGraphNode.language = dependency_hierarchy_node.language
         networkGraphNode.framework = dependency_hierarchy_node.framework
         networkGraphNode.source = "AppleNativeOrIgnored"
         networkGraphNode.destination = dependency_hierarchy_node.subclass
         networkGraphNode.source_type = DependencyItemType::CLASS
-        networkGraphNode.destination_type = DependencyItemType::CLASS
+        networkGraphNode.destination_type = dependency_hierarchy_node.subclass_type
         networkGraphNode.link_type = DependencyLinkType::INHERITANCE
         yield networkGraphNode
       end
+
+      #ignore Apple's classes. some how even with this, the classes and structs declared in swift with no inheritance still come through
+      #subclass:protocol
+      if dependency_hierarchy_node.protocols.count > 0 
+        dependency_hierarchy_node.protocols.each { |protocol| 
+          networkGraphNode = NetworkGraphNode.new
+          networkGraphNode.language = dependency_hierarchy_node.language
+          networkGraphNode.framework = dependency_hierarchy_node.framework
+          networkGraphNode.source = dependency_hierarchy_node.subclass
+          networkGraphNode.destination = protocol
+          networkGraphNode.source_type = dependency_hierarchy_node.subclass_type
+          networkGraphNode.destination_type = DependencyItemType::PROTOCOL
+          networkGraphNode.link_type = DependencyLinkType::INHERITANCE
+          yield networkGraphNode
+        }
+      end
+
       #for each dependency of the subclass capture the relationship, but cannot put language and framework 
       #as that dependency can be from a different one which will be captured by the above if when it appears in the file
+      #subclass:dependency
       dependency_hierarchy_node.dependency.each { |dependency|
         networkGraphNode = NetworkGraphNode.new
         networkGraphNode.language = ""
         networkGraphNode.framework = ""
-        networkGraphNode.source = "AppleNativeOrIgnored"
+        networkGraphNode.source = dependency_hierarchy_node.subclass
         networkGraphNode.destination = dependency
-        networkGraphNode.source_type = DependencyItemType::CLASS
-        networkGraphNode.destination_type = DependencyItemType::CLASS
+        networkGraphNode.source_type = dependency_hierarchy_node.subclass_type
+        networkGraphNode.destination_type = ""
         networkGraphNode.link_type = DependencyLinkType::CALL
         yield networkGraphNode
       }

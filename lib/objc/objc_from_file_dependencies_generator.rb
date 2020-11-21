@@ -132,7 +132,7 @@ class ObjcFromFileHierarchyCreator
          framework_name = "" #ignore the framework coming from above
       end
 
-      current_node = get_node_with_details(subclass_name, super_class_name, protocol_list_string, language, framework_name, current_node, dependency)
+      current_node = get_node_with_details(DependencyItemType::CLASS, subclass_name, super_class_name, protocol_list_string, language, framework_name, current_node, dependency)
 
     elsif file_line.include?("@protocol") and 
       file_line.include?(";") == false and
@@ -147,29 +147,30 @@ class ObjcFromFileHierarchyCreator
       Logger.log_message("----file_line gsubbed : #{file_line} ")
       subclass_name, super_class_name, protocol_list_string = subclass_superclass_protocol_name(file_line)
       Logger.log_message("---------@protocol subclass: #{subclass_name}--------")
-      current_node = get_node_with_details(subclass_name, super_class_name, protocol_list_string, language, framework_name, current_node, dependency)
+      current_node = get_node_with_details(DependencyItemType::PROTOCOL, subclass_name, super_class_name, protocol_list_string, language, framework_name, current_node, dependency)
     end
 
     return decl_start_line_found, current_node
   end
 
 
-  def get_node_with_details(subclass_name, super_class_name, protocol_list_string, language, framework_name, current_node, dependency)
+  def get_node_with_details(node_type, subclass_name, super_class_name, protocol_list_string, language, framework_name, current_node, dependency)
     if subclass_name.length > 0 
       Logger.log_message("---------subclass: #{subclass_name}--------")
       current_node = find_or_create_hierarchy_node_and_update_dependency(language, framework_name, subclass_name, current_node, dependency)
       if current_node.subclass.length == 0 #when new node created
         current_node.subclass = subclass_name
+        current_node.subclass_type = node_type
       end
 
       if super_class_name.length > 0 #when the current node is found or created and the super class name is available
         Logger.log_message("---------superclass: #{super_class_name}--------")
-        current_node.add_polymorphism(super_class_name)    
+        current_node.add_superclass(super_class_name)    
       end
 
       if protocol_list_string.length > 0
         Logger.log_message("---------protocols: #{protocol_list_string}--------")
-        current_node.add_polymorphism(protocol_list_string) #add tokenised protocols
+        current_node.add_protocols(protocol_list_string) #add tokenised protocols
       end
     end
 

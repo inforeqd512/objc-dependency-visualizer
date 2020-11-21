@@ -137,7 +137,7 @@ class ASTHierarchyCreator
                 #if by the time the first regular dependency is added, the subclass name is not present, then most likely its because it is second level var_decl, const_dect, typealias_decl
                 #so to capture the dependency of the type this var,const or alias refers to, capture it atleast at .swift file name level till 
                 #TODO find a better way to link to proper parent Type that uses the const or var
-                subclass_name_default_if_empty(current_node, subclass_name_for_global_decl)
+                subclass_name_default_if_empty(current_node, subclass_name_for_global_decl, currently_seeing_tag)
               end
             end
           end
@@ -182,18 +182,19 @@ class ASTHierarchyCreator
 
   def superclass_or_protocol_name(file_line, currently_seeing_tag, current_node)
     superclass_or_protocol_name_found = false
-    if current_node.superclass_or_protocol.length == 0
+    # if current_node.protocols.count == 0 #seems like this check is not required as parent_types check will suffice?
       if file_line.include? "parent_types:" and currently_seeing_tag.include? "_decl" #check for _decl just to be safe
-        current_node.add_polymorphism(file_line)
+        current_node.add_superclass(file_line)
         superclass_or_protocol_name_found = true
       end
-    end
+    # end
     return current_node, superclass_or_protocol_name_found
   end
 
-  def subclass_name_default_if_empty(current_node, filename)
+  def subclass_name_default_if_empty(current_node, filename, currently_seeing_tag)
     if current_node.subclass.length == 0
       current_node.subclass = filename
+      current_node.subclass_type = currently_seeing_tag
     end
   end
 
@@ -216,6 +217,7 @@ class ASTHierarchyCreator
         existing_subclass_or_extension_node = find_node(name, dependency)
         if existing_subclass_or_extension_node == nil
           current_node.subclass = name
+          current_node.subclass_type = currently_seeing_tag
           Logger.log_message "-----NO existing_subclass_or_extension_node : #{current_node}--AAAAA--subclass: #{current_node.subclass}----"
         else
           dependency.pop #remove the node created at _decl above

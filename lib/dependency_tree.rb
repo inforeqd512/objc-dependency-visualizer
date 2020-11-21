@@ -63,9 +63,11 @@ class DependencyTree
     if @links_registry_csv.key?(link_key)
       #link exists so dont add link
     else
+
+      # create id for source and destination nodes
       if !@node_csv.key?(networkGraphNode.source)
         @id_generator_csv = @id_generator_csv + 1
-        @node_csv[networkGraphNode.source] = { "id" => @id_generator_csv } #{source_class_name => id, "framework" => UIKit}
+        @node_csv[networkGraphNode.source] = { "id" => @id_generator_csv } 
       end
   
       if !@node_csv.key?(networkGraphNode.destination)
@@ -73,6 +75,9 @@ class DependencyTree
         @node_csv[networkGraphNode.destination] = { "id" => @id_generator_csv }
       end
 
+      #add details for the destination node as the source is always the superclass or protocol which will
+      #have it's details created afterwards when it is linked to AppleIgnored or to its super class
+      #thats why check for whether that value exists else dont modify earlier value that was set 
       if networkGraphNode.framework.length > 0 #TODO: this check will happen for each of the dependency. Can we reduce it to only when it's for the subclass
         #TODO: for now only initialise if it doesn't contain any value. This will miss categorising those that have say ObjC subclasses, but have Swift categories/extensions.
         #Doing this so that once this value is set based on the fact that it's 
@@ -88,7 +93,11 @@ class DependencyTree
       end
 
       #add other features
-      @node_csv[networkGraphNode.destination]["node_type"] = networkGraphNode.destination_type # add whether class or protocol
+      if networkGraphNode.destination_type.length > 0
+        if @node_csv[networkGraphNode.destination]["node_type"] == nil 
+          @node_csv[networkGraphNode.destination]["node_type"] = networkGraphNode.destination_type # add whether class or protocol
+        end
+      end
 
       #add link
       @links_registry_csv[link_key] = true
