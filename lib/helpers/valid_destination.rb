@@ -327,7 +327,14 @@ class SwiftPrimitives
       'More',
       'Transactions',
       'This',
-      'The'
+      'The',
+      'If',
+      'Index',
+      'InfoKey',
+      'AppleNativeOrIgnored',
+      'Apple',
+      'Alert',
+      'shared'
 
     ]).freeze
 
@@ -346,7 +353,7 @@ def is_filtered_swift_type?(dest)
 end
 
 def is_filtered_objc_type?(dest)
-  /^(dispatch_)|(DISPATCH_)/.match(dest) != nil #or /^([a-z])/.match(dest) != nil
+  /^(dispatch_)|(DISPATCH_)|Journal/.match(dest) != nil #or /^([a-z])/.match(dest) != nil
 end
 
 def is_valid_dest?(dest, exclusion_prefixes)
