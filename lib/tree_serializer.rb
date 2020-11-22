@@ -59,7 +59,7 @@ class TreeSerializer
     #ie. dependency injection 
     CSV.open("edge.csv", "wb") {|csv| 
       csv << ["Source", "Target", "Type"]
-      edge.each {|hash| csv << [hash["target"], hash["source"], hash["type"]] } 
+      edge.each {|hash| csv << [hash["source"], hash["target"], hash["type"]] } 
     }
     CSV.open("node.csv", "wb") {|csv| 
       csv << ["Id", "Label", "Framework", "Language", "Node_type"]

@@ -221,6 +221,14 @@ def pair_source_dest (dependency)
   dependency.each { |dependency_hierarchy_node|
     if dependency_hierarchy_node.subclass.length > 0 #subclasses are nil for top level var_decl, const_decl
 
+      #here we show information flow
+      #in code when an object A is composed of B, that means information flows
+      #from B to A. So a change in B will mean a change is required in A or A now
+      #has access to more information than it did previouly
+      #ie. dependency injection 
+      #so information flows from superclass:subclass, dependency:subclass, 
+      #protocol is a grey area.. since subclass uses protocol so maybe : subclass:protocol
+
       #superclass:subclass
       if dependency_hierarchy_node.superclass.count > 0 
         dependency_hierarchy_node.superclass.each { |superclass| 
@@ -272,10 +280,10 @@ def pair_source_dest (dependency)
         networkGraphNode = NetworkGraphNode.new
         networkGraphNode.language = ""
         networkGraphNode.framework = ""
-        networkGraphNode.source = dependency_hierarchy_node.subclass
-        networkGraphNode.destination = dependency
-        networkGraphNode.source_type = dependency_hierarchy_node.subclass_type
-        networkGraphNode.destination_type = ""
+        networkGraphNode.source = dependency
+        networkGraphNode.destination = dependency_hierarchy_node.subclass
+        networkGraphNode.source_type = ""
+        networkGraphNode.destination_type = dependency_hierarchy_node.subclass_type
         networkGraphNode.link_type = DependencyLinkType::CALL
         yield networkGraphNode
       }
