@@ -54,6 +54,10 @@ class DependencyTree
   #
   #
   def csv_display(networkGraphNode)
+
+
+    $stderr.puts(" &&&&& source: #{networkGraphNode.source}")
+    $stderr.puts(" &&&&& destination: #{networkGraphNode.destination}")
     # currently there's a bug in swift-ast 0.18.10 where the protocol decl methods take up the same name as protocol.
     # so till that is fixed, explicitly ignoring those nodes where source and dependency names are the same
     if networkGraphNode.source == networkGraphNode.destination 
