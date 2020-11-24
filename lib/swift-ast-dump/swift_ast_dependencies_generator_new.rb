@@ -194,7 +194,7 @@ class ASTHierarchyCreator
   def subclass_name_default_if_empty(current_node, filename, currently_seeing_tag)
     if current_node.subclass.length == 0
       current_node.subclass = filename
-      current_node.subclass_type = currently_seeing_tag
+      current_node.add_subclass_type(currently_seeing_tag)
     end
   end
 

@@ -200,11 +200,13 @@ def print_count (final_line_count)
 end
 
 def print_hierarchy (dependency)
+
   Logger.log_message("\n\n\n\n\n\n\n\n\n\n\n\n--------------print_hierarchy--------------------------")
   dependency.each { |dependency_hierarchy_node|
 
     Logger.log_message("--------------#{dependency_hierarchy_node}-----------------")
     Logger.log_message("-----subclass: #{dependency_hierarchy_node.subclass}-----")
+    Logger.log_message("-----subclass_type: #{dependency_hierarchy_node.subclass_type}-----")
     Logger.log_message("-----superclass: #{dependency_hierarchy_node.superclass}-----")
     dependency_hierarchy_node.protocols.each { |node|
       Logger.log_message("-----protocols: #{node}-----")
@@ -229,11 +231,13 @@ def pair_source_dest (dependency)
       #so information flows from superclass:subclass, dependency:subclass, 
       #protocol is a grey area.. since subclass uses protocol so maybe : subclass:protocol
 
+      #NetworkGraphNode captures the details for the destination nodes 
+      #when the source becomes the destination in another pass then those details will be captured for the source
       #superclass:subclass
       if dependency_hierarchy_node.superclass.count > 0 
         dependency_hierarchy_node.superclass.each { |superclass| 
           networkGraphNode = NetworkGraphNode.new
-          networkGraphNode.language = dependency_hierarchy_node.language
+          networkGraphNode.language = dependency_hierarchy_node.language 
           networkGraphNode.framework = dependency_hierarchy_node.framework
           networkGraphNode.source = superclass
           networkGraphNode.destination = dependency_hierarchy_node.subclass
@@ -257,13 +261,13 @@ def pair_source_dest (dependency)
         yield networkGraphNode
       end
 
-      #ignore Apple's classes. some how even with this, the classes and structs declared in swift with no inheritance still come through
+      #??ignore Apple's classes. some how even with this, the classes and structs declared in swift with no inheritance still come through
       #subclass:protocol
       if dependency_hierarchy_node.protocols.count > 0 
         dependency_hierarchy_node.protocols.each { |protocol| 
           networkGraphNode = NetworkGraphNode.new
-          networkGraphNode.language = dependency_hierarchy_node.language
-          networkGraphNode.framework = dependency_hierarchy_node.framework
+          networkGraphNode.language = ""
+          networkGraphNode.framework = ""
           networkGraphNode.source = dependency_hierarchy_node.subclass
           networkGraphNode.destination = protocol
           networkGraphNode.source_type = dependency_hierarchy_node.subclass_type

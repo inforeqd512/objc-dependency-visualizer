@@ -160,7 +160,7 @@ class ObjcFromFileHierarchyCreator
       current_node = find_or_create_hierarchy_node_and_update_dependency(language, framework_name, subclass_name, current_node, dependency)
       if current_node.subclass.length == 0 #when new node created
         current_node.subclass = subclass_name
-        current_node.subclass_type = node_type
+        current_node.add_subclass_type(node_type)
       end
 
       if super_class_name.length > 0 #when the current node is found or created and the super class name is available
