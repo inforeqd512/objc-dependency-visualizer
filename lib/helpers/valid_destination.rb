@@ -334,7 +334,8 @@ class SwiftPrimitives
       'AppleNativeOrIgnored',
       'Apple',
       'Alert',
-      'shared'
+      'shared',
+      'PodsDummy'
 
     ]).freeze
 
